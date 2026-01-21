@@ -96,40 +96,67 @@ export const useGame = (gameCode?: string) => {
 
   // Join an existing game
   const joinGame = useCallback(async (code: string): Promise<Game | null> => {
-    const existingGame = await fetchGame(code);
-    if (!existingGame) return null;
+    setLoading(true);
+    setError(null);
+    
+    const { data: existingGame, error: fetchError } = await supabase
+      .from('games')
+      .select('*')
+      .eq('code', code.toUpperCase())
+      .maybeSingle();
 
-    if (existingGame.player1_id === playerId) {
-      return existingGame;
-    }
-
-    if (existingGame.player2_id && existingGame.player2_id !== playerId) {
-      setError('Cette partie est déjà complète');
+    if (fetchError) {
+      setError('Erreur lors de la récupération de la partie');
+      setLoading(false);
       return null;
     }
 
-    if (!existingGame.player2_id) {
+    if (!existingGame) {
+      setError('Code invalide - partie non trouvée');
+      setLoading(false);
+      return null;
+    }
+
+    const gameData = existingGame as Game;
+
+    if (gameData.player1_id === playerId) {
+      setGame(gameData);
+      setLoading(false);
+      return gameData;
+    }
+
+    if (gameData.player2_id && gameData.player2_id !== playerId) {
+      setError('Cette partie est déjà complète');
+      setLoading(false);
+      return null;
+    }
+
+    if (!gameData.player2_id) {
       const { data, error: updateError } = await supabase
         .from('games')
         .update({
           player2_id: playerId,
           status: 'playing' as GameStatus,
         })
-        .eq('id', existingGame.id)
+        .eq('id', gameData.id)
         .select()
         .single();
 
       if (updateError) {
         setError('Erreur lors de la connexion à la partie');
+        setLoading(false);
         return null;
       }
 
       setGame(data as Game);
+      setLoading(false);
       return data as Game;
     }
 
-    return existingGame;
-  }, [fetchGame, playerId]);
+    setGame(gameData);
+    setLoading(false);
+    return gameData;
+  }, [playerId]);
 
   // Update game state
   const updateGameState = useCallback(async (
