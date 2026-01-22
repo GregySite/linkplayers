@@ -148,23 +148,23 @@ export const BattleshipGame = ({ game, playerId, onPlaceShips, onShoot }: Battle
                   onMouseLeave={() => setHoverCells([])}
                   disabled={!onClick}
                   className={`
-                    w-6 h-6 sm:w-7 sm:h-7 rounded-sm border transition-all duration-150
+                    w-6 h-6 sm:w-7 sm:h-7 rounded-sm border transition-all duration-150 flex items-center justify-center
                     ${cell.hit && cell.hasShip ? 'bg-destructive border-destructive' : ''}
-                    ${cell.hit && !cell.hasShip ? 'bg-secondary/30 border-secondary' : ''}
+                    ${cell.hit && !cell.hasShip ? 'bg-muted/80 border-muted-foreground/50' : ''}
                     ${!cell.hit && cell.hasShip && isOwn ? 'bg-primary/50 border-primary' : ''}
                     ${!cell.hit && !cell.hasShip ? 'bg-muted border-border' : ''}
                     ${!cell.hit && cell.hasShip && !isOwn ? 'bg-muted border-border' : ''}
                     ${isHovered && canPlace ? 'bg-success/50 border-success' : ''}
                     ${isHovered && !canPlace && isPlacement ? 'bg-destructive/50 border-destructive' : ''}
-                    ${onClick && !cell.hit ? 'cursor-pointer hover:border-primary' : ''}
-                    ${onClick && cell.hit ? 'cursor-not-allowed' : ''}
+                    ${onClick && !cell.hit ? 'cursor-pointer hover:border-primary hover:bg-primary/20' : ''}
+                    ${onClick && cell.hit ? 'cursor-not-allowed opacity-60' : ''}
                   `}
                 >
                   {cell.hit && cell.hasShip && (
                     <Target className="w-3 h-3 sm:w-4 sm:h-4 text-primary-foreground" />
                   )}
                   {cell.hit && !cell.hasShip && (
-                    <span className="text-secondary text-xs">•</span>
+                    <span className="text-muted-foreground font-bold text-sm">✕</span>
                   )}
                 </motion.button>
               );
