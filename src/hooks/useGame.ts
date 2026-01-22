@@ -5,6 +5,12 @@ import { getOrCreatePlayerId, generateGameCode } from '@/lib/gameUtils';
 export type GameType = 'morpion' | 'battleship';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
 
+export interface RematchState {
+  player1WantsRematch: boolean | null;
+  player2WantsRematch: boolean | null;
+  scores: { player1: number; player2: number };
+}
+
 export interface Game {
   id: string;
   code: string;
@@ -186,6 +192,75 @@ export const useGame = (gameCode?: string) => {
     return data as Game;
   }, [game]);
 
+  // Vote for rematch
+  const voteRematch = useCallback(async (wantRematch: boolean) => {
+    if (!game) return null;
+
+    const currentState = game.game_state as Record<string, unknown>;
+    const amPlayer1 = game.player1_id === playerId;
+    
+    const rematchKey = amPlayer1 ? 'player1WantsRematch' : 'player2WantsRematch';
+    const newState = {
+      ...currentState,
+      [rematchKey]: wantRematch,
+    };
+
+    return updateGameState(newState);
+  }, [game, playerId, updateGameState]);
+
+  // Start rematch - creates new game with same players and incremented scores
+  const startRematch = useCallback(async (): Promise<Game | null> => {
+    if (!game) return null;
+
+    const currentState = game.game_state as Record<string, unknown>;
+    const currentScores = (currentState.scores as { player1: number; player2: number }) || { player1: 0, player2: 0 };
+    
+    // Increment winner's score
+    const newScores = { ...currentScores };
+    if (game.winner === game.player1_id) {
+      newScores.player1 += 1;
+    } else if (game.winner === game.player2_id) {
+      newScores.player2 += 1;
+    }
+
+    const code = generateGameCode();
+    const initialState = game.game_type === 'morpion' 
+      ? { board: Array(9).fill(null), scores: newScores, player1WantsRematch: null, player2WantsRematch: null }
+      : { 
+          player1Grid: [],
+          player2Grid: [],
+          player1Ships: [],
+          player2Ships: [],
+          player1Ready: false,
+          player2Ready: false,
+          phase: 'placement',
+          scores: newScores,
+          player1WantsRematch: null,
+          player2WantsRematch: null
+        };
+
+    const { data, error: createError } = await supabase
+      .from('games')
+      .insert({
+        code,
+        game_type: game.game_type,
+        player1_id: game.player1_id,
+        player2_id: game.player2_id,
+        current_turn: game.player1_id,
+        status: 'playing' as GameStatus,
+        game_state: initialState,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      setError('Erreur lors de la création de la revanche');
+      return null;
+    }
+
+    return data as Game;
+  }, [game]);
+
   // Subscribe to realtime updates
   useEffect(() => {
     if (!gameCode) return;
@@ -227,5 +302,7 @@ export const useGame = (gameCode?: string) => {
     joinGame,
     updateGameState,
     fetchGame,
+    voteRematch,
+    startRematch,
   };
 };

@@ -153,6 +153,7 @@ export const BattleshipGame = ({ game, playerId, onPlaceShips, onShoot }: Battle
                     ${cell.hit && !cell.hasShip ? 'bg-secondary/30 border-secondary' : ''}
                     ${!cell.hit && cell.hasShip && isOwn ? 'bg-primary/50 border-primary' : ''}
                     ${!cell.hit && !cell.hasShip ? 'bg-muted border-border' : ''}
+                    ${!cell.hit && cell.hasShip && !isOwn ? 'bg-muted border-border' : ''}
                     ${isHovered && canPlace ? 'bg-success/50 border-success' : ''}
                     ${isHovered && !canPlace && isPlacement ? 'bg-destructive/50 border-destructive' : ''}
                     ${onClick && !cell.hit ? 'cursor-pointer hover:border-primary' : ''}

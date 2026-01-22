@@ -1,17 +1,37 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Users, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Users } from 'lucide-react';
 import { useGame } from '@/hooks/useGame';
 import { CodeDisplay } from '@/components/CodeDisplay';
 import { MorpionGame } from '@/components/games/MorpionGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
+import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
-import { BattleshipCell, createEmptyGrid } from '@/lib/gameUtils';
+import { BattleshipCell, checkMorpionWinner, isMorpionDraw, checkAllShipsSunk } from '@/lib/gameUtils';
 
 const GamePage = () => {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const { game, loading, error, playerId, updateGameState, createGame } = useGame(code);
+  const { game, loading, error, playerId, updateGameState, voteRematch, startRematch } = useGame(code);
+
+  // Check if both players want rematch and start new game
+  useEffect(() => {
+    if (!game) return;
+
+    const gameState = game.game_state as Record<string, unknown>;
+    const player1WantsRematch = gameState.player1WantsRematch as boolean | null;
+    const player2WantsRematch = gameState.player2WantsRematch as boolean | null;
+
+    if (player1WantsRematch === true && player2WantsRematch === true) {
+      // Both want rematch, create new game
+      startRematch().then((newGame) => {
+        if (newGame) {
+          navigate(`/game/${newGame.code}`);
+        }
+      });
+    }
+  }, [game, startRematch, navigate]);
 
   if (loading) {
     return (
@@ -39,7 +59,8 @@ const GamePage = () => {
     board[index] = amPlayer1 ? 'X' : 'O';
 
     const nextTurn = amPlayer1 ? game.player2_id : game.player1_id;
-    await updateGameState({ board }, { current_turn: nextTurn });
+    const gameState = game.game_state as Record<string, unknown>;
+    await updateGameState({ ...gameState, board }, { current_turn: nextTurn });
   };
 
   const handleBattleshipPlaceShips = async (grid: BattleshipCell[][]) => {
@@ -81,15 +102,45 @@ const GamePage = () => {
     }, { current_turn: nextTurn });
   };
 
-  const handlePlayAgain = async () => {
-    const newGame = await createGame(game.game_type);
-    if (newGame) {
-      navigate(`/game/${newGame.code}`);
-    }
+  const handleRematchVote = async (wantRematch: boolean) => {
+    await voteRematch(wantRematch);
   };
 
+  // Determine if game is finished
+  const isGameFinished = () => {
+    if (game.status === 'finished' || game.winner) return true;
+
+    if (game.game_type === 'morpion') {
+      const board = (game.game_state as { board: (string | null)[] }).board || [];
+      return !!checkMorpionWinner(board) || isMorpionDraw(board);
+    }
+
+    if (game.game_type === 'battleship') {
+      const gameState = game.game_state as {
+        player1Grid?: BattleshipCell[][];
+        player2Grid?: BattleshipCell[][];
+        phase?: string;
+      };
+      if (gameState.phase !== 'playing') return false;
+      if (gameState.player1Grid && checkAllShipsSunk(gameState.player1Grid)) return true;
+      if (gameState.player2Grid && checkAllShipsSunk(gameState.player2Grid)) return true;
+    }
+
+    return false;
+  };
+
+  const gameState = game.game_state as Record<string, unknown>;
+  const amPlayer1 = game.player1_id === playerId;
+  const myVote = amPlayer1 
+    ? (gameState.player1WantsRematch as boolean | null) ?? null
+    : (gameState.player2WantsRematch as boolean | null) ?? null;
+  const opponentVote = amPlayer1 
+    ? (gameState.player2WantsRematch as boolean | null) ?? null
+    : (gameState.player1WantsRematch as boolean | null) ?? null;
+  const scores = (gameState.scores as { player1: number; player2: number }) || { player1: 0, player2: 0 };
+
   const gameTitle = game.game_type === 'morpion' ? 'Morpion' : 'Bataille Navale';
-  const isFinished = game.status === 'finished' || game.winner;
+  const isFinished = isGameFinished();
 
   return (
     <div className="min-h-screen bg-background">
@@ -105,9 +156,22 @@ const GamePage = () => {
 
           <h1 className="font-display text-xl font-bold text-foreground">{gameTitle}</h1>
 
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="w-4 h-4" />
-            <span>{game.player2_id ? '2/2' : '1/2'}</span>
+          <div className="flex items-center gap-4">
+            {(scores.player1 > 0 || scores.player2 > 0) && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className={amPlayer1 ? 'text-primary font-bold' : 'text-muted-foreground'}>
+                  {amPlayer1 ? scores.player1 : scores.player2}
+                </span>
+                <span className="text-muted-foreground">-</span>
+                <span className={!amPlayer1 ? 'text-primary font-bold' : 'text-muted-foreground'}>
+                  {amPlayer1 ? scores.player2 : scores.player1}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Users className="w-4 h-4" />
+              <span>{game.player2_id ? '2/2' : '1/2'}</span>
+            </div>
           </div>
         </div>
       </header>
@@ -139,16 +203,19 @@ const GamePage = () => {
             )}
           </div>
 
-          {isFinished && (
+          {isFinished && game.player2_id && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="flex justify-center"
             >
-              <Button onClick={handlePlayAgain} className="bg-primary hover:bg-primary/90">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Nouvelle partie
-              </Button>
+              <RematchVote
+                myVote={myVote}
+                opponentVote={opponentVote}
+                onVote={handleRematchVote}
+                scores={scores}
+                amPlayer1={amPlayer1}
+              />
             </motion.div>
           )}
         </motion.div>
