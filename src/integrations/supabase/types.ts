@@ -65,7 +65,13 @@ export type Database = {
     }
     Enums: {
       game_status: "waiting" | "playing" | "finished"
-      game_type: "morpion" | "battleship"
+      game_type:
+        | "morpion"
+        | "battleship"
+        | "connect4"
+        | "rps"
+        | "othello"
+        | "emoji_quiz"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -194,7 +200,14 @@ export const Constants = {
   public: {
     Enums: {
       game_status: ["waiting", "playing", "finished"],
-      game_type: ["morpion", "battleship"],
+      game_type: [
+        "morpion",
+        "battleship",
+        "connect4",
+        "rps",
+        "othello",
+        "emoji_quiz",
+      ],
     },
   },
 } as const
