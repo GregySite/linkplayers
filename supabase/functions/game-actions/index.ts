@@ -426,46 +426,60 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Verify authentication via JWT
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Verify the user's identity using their JWT
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    )
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: claimsData, error: authError } = await supabaseUser.auth.getClaims(token)
+    if (authError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const playerId = claimsData.claims.sub as string
+    console.log(`Authenticated request from user ${playerId}`)
+
+    // Service role client for database operations (bypasses RLS)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
     const body = await req.json()
-    const { action, player_id, ...params } = body
-
-    // Validate player_id
-    if (!player_id || typeof player_id !== 'string') {
-      return new Response(JSON.stringify({ error: 'player_id is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    if (!player_id.startsWith('player_') || player_id.length > 60) {
-      return new Response(JSON.stringify({ error: 'Invalid player_id format' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    const { action, ...params } = body
 
     let result: { data?: unknown; error?: string }
 
     switch (action) {
       case 'create':
-        result = await handleCreate(supabaseAdmin, player_id, params)
+        result = await handleCreate(supabaseAdmin, playerId, params)
         break
       case 'join':
-        result = await handleJoin(supabaseAdmin, player_id, params)
+        result = await handleJoin(supabaseAdmin, playerId, params)
         break
       case 'update_state':
-        result = await handleUpdateState(supabaseAdmin, player_id, params)
+        result = await handleUpdateState(supabaseAdmin, playerId, params)
         break
       case 'vote_rematch':
-        result = await handleVoteRematch(supabaseAdmin, player_id, params)
+        result = await handleVoteRematch(supabaseAdmin, playerId, params)
         break
       case 'start_rematch':
-        result = await handleStartRematch(supabaseAdmin, player_id, params)
+        result = await handleStartRematch(supabaseAdmin, playerId, params)
         break
       default:
         result = { error: 'Unknown action' }
