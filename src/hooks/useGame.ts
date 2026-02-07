@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getOrCreatePlayerId, generateGameCode, createConnect4Board, createOthelloBoard } from '@/lib/gameUtils';
+import { getOrCreatePlayerId } from '@/lib/gameUtils';
 
 export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'emoji_quiz';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
@@ -25,35 +25,23 @@ export interface Game {
   updated_at: string;
 }
 
-const getInitialState = (gameType: GameType, extraState?: Record<string, unknown>): Record<string, unknown> => {
-  const base = extraState || {};
-  switch (gameType) {
-    case 'morpion':
-      return { board: Array(9).fill(null), ...base };
-    case 'battleship':
-      return {
-        player1Grid: [], player2Grid: [],
-        player1Ships: [], player2Ships: [],
-        player1Ready: false, player2Ready: false,
-        phase: 'placement', ...base,
-      };
-    case 'connect4':
-      return { board: createConnect4Board(), ...base };
-    case 'rps':
-      return {
-        player1Choice: null, player2Choice: null,
-        rounds: [], currentRound: 1, bestOf: 3, ...base,
-      };
-    case 'othello':
-      return { board: createOthelloBoard(), currentColor: 'black', ...base };
-    case 'emoji_quiz':
-      return {
-        currentMaster: 'player1', emojis: '', answer: '', guess: '',
-        rounds: [], currentRound: 1, judging: false, ...base,
-      };
-    default:
-      return base;
+// Helper to invoke the game-actions edge function
+const invokeGameAction = async (action: string, playerId: string, params: Record<string, unknown> = {}) => {
+  const { data, error } = await supabase.functions.invoke('game-actions', {
+    body: { action, player_id: playerId, ...params },
+  });
+
+  if (error) {
+    console.error(`game-actions/${action} invoke error:`, error);
+    return { data: null, error: error.message || 'Request failed' };
   }
+
+  // The edge function returns { data: ... } or { error: ... }
+  if (data?.error) {
+    return { data: null, error: data.error };
+  }
+
+  return { data: data?.data || null, error: null };
 };
 
 export const useGame = (gameCode?: string) => {
@@ -62,6 +50,7 @@ export const useGame = (gameCode?: string) => {
   const [error, setError] = useState<string | null>(null);
   const playerId = getOrCreatePlayerId();
 
+  // fetchGame still reads directly (SELECT policy is permissive)
   const fetchGame = useCallback(async (code: string) => {
     setLoading(true);
     setError(null);
@@ -78,25 +67,14 @@ export const useGame = (gameCode?: string) => {
     return data as Game;
   }, []);
 
+  // All write operations go through the edge function
   const createGame = useCallback(async (gameType: GameType): Promise<Game | null> => {
     setLoading(true);
     setError(null);
-    const code = generateGameCode();
-    const initialState = getInitialState(gameType);
 
-    const { data, error: createError } = await supabase
-      .from('games')
-      .insert([{
-        code,
-        game_type: gameType as any,
-        player1_id: playerId,
-        current_turn: playerId,
-        game_state: initialState as any,
-      }])
-      .select()
-      .single();
+    const { data, error: actionError } = await invokeGameAction('create', playerId, { game_type: gameType });
 
-    if (createError) { setError('Erreur lors de la création de la partie'); setLoading(false); return null; }
+    if (actionError) { setError('Erreur lors de la création de la partie'); setLoading(false); return null; }
     setGame(data as Game);
     setLoading(false);
     return data as Game;
@@ -105,35 +83,20 @@ export const useGame = (gameCode?: string) => {
   const joinGame = useCallback(async (code: string): Promise<Game | null> => {
     setLoading(true);
     setError(null);
-    const { data: existingGame, error: fetchError } = await supabase
-      .from('games')
-      .select('*')
-      .eq('code', code.toUpperCase())
-      .maybeSingle();
 
-    if (fetchError) { setError('Erreur lors de la récupération de la partie'); setLoading(false); return null; }
-    if (!existingGame) { setError('Code invalide - partie non trouvée'); setLoading(false); return null; }
+    const { data, error: actionError } = await invokeGameAction('join', playerId, { code: code.toUpperCase() });
 
-    const gameData = existingGame as Game;
-    if (gameData.player1_id === playerId) { setGame(gameData); setLoading(false); return gameData; }
-    if (gameData.player2_id && gameData.player2_id !== playerId) { setError('Cette partie est déjà complète'); setLoading(false); return null; }
-
-    if (!gameData.player2_id) {
-      const { data, error: updateError } = await supabase
-        .from('games')
-        .update({ player2_id: playerId, status: 'playing' as GameStatus })
-        .eq('id', gameData.id)
-        .select()
-        .single();
-      if (updateError) { setError('Erreur lors de la connexion à la partie'); setLoading(false); return null; }
-      setGame(data as Game);
+    if (actionError) {
+      setError(actionError === 'Game not found' ? 'Code invalide - partie non trouvée' :
+               actionError === 'Game is already full' ? 'Cette partie est déjà complète' :
+               'Erreur lors de la connexion à la partie');
       setLoading(false);
-      return data as Game;
+      return null;
     }
 
-    setGame(gameData);
+    setGame(data as Game);
     setLoading(false);
-    return gameData;
+    return data as Game;
   }, [playerId]);
 
   const updateGameState = useCallback(async (
@@ -141,63 +104,42 @@ export const useGame = (gameCode?: string) => {
     additionalUpdates?: Partial<Game>
   ) => {
     if (!game) return null;
-    const updatePayload: Record<string, unknown> = { game_state: newState, ...additionalUpdates };
-    const { data, error: updateError } = await supabase
-      .from('games')
-      .update(updatePayload)
-      .eq('id', game.id)
-      .select()
-      .single();
-    if (updateError) { setError('Erreur lors de la mise à jour'); return null; }
+
+    const { data, error: actionError } = await invokeGameAction('update_state', playerId, {
+      game_id: game.id,
+      game_state: newState,
+      additional_updates: additionalUpdates || {},
+    });
+
+    if (actionError) { setError('Erreur lors de la mise à jour'); return null; }
     setGame(data as Game);
     return data as Game;
-  }, [game]);
+  }, [game, playerId]);
 
   const voteRematch = useCallback(async (wantRematch: boolean) => {
     if (!game) return null;
-    const currentState = game.game_state as Record<string, unknown>;
-    const amPlayer1 = game.player1_id === playerId;
-    const rematchKey = amPlayer1 ? 'player1WantsRematch' : 'player2WantsRematch';
-    return updateGameState({ ...currentState, [rematchKey]: wantRematch });
-  }, [game, playerId, updateGameState]);
 
-  // FIX: Reset the existing game instead of creating a new one
+    const { data, error: actionError } = await invokeGameAction('vote_rematch', playerId, {
+      game_id: game.id,
+      want_rematch: wantRematch,
+    });
+
+    if (actionError) { setError('Erreur lors du vote'); return null; }
+    setGame(data as Game);
+    return data as Game;
+  }, [game, playerId]);
+
   const startRematch = useCallback(async (): Promise<Game | null> => {
     if (!game) return null;
 
-    const currentState = game.game_state as Record<string, unknown>;
-    const currentScores = (currentState.scores as { player1: number; player2: number }) || { player1: 0, player2: 0 };
-
-    const newScores = { ...currentScores };
-    if (game.winner === game.player1_id) {
-      newScores.player1 += 1;
-    } else if (game.winner === game.player2_id) {
-      newScores.player2 += 1;
-    }
-
-    const freshState = getInitialState(game.game_type, {
-      scores: newScores,
-      player1WantsRematch: null,
-      player2WantsRematch: null,
+    const { data, error: actionError } = await invokeGameAction('start_rematch', playerId, {
+      game_id: game.id,
     });
 
-    // UPDATE the same game — keep the same code so both players stay synced
-    const { data, error: updateError } = await supabase
-      .from('games')
-      .update({
-        game_state: freshState as any,
-        status: 'playing' as any,
-        winner: null,
-        current_turn: game.player1_id,
-      })
-      .eq('id', game.id)
-      .select()
-      .single();
-
-    if (updateError) { setError('Erreur lors de la création de la revanche'); return null; }
+    if (actionError) { setError('Erreur lors de la création de la revanche'); return null; }
     setGame(data as Game);
     return data as Game;
-  }, [game]);
+  }, [game, playerId]);
 
   // Subscribe to realtime updates
   useEffect(() => {
