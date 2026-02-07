@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 // Generate a random 4-character code (letters and numbers)
 export const generateGameCode = (): string => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluding confusing chars like 0, O, 1, I
@@ -8,15 +10,15 @@ export const generateGameCode = (): string => {
   return code;
 };
 
-// Generate a unique player ID for this session
-export const getOrCreatePlayerId = (): string => {
-  const storageKey = 'duo_games_player_id';
-  let playerId = localStorage.getItem(storageKey);
-  if (!playerId) {
-    playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem(storageKey, playerId);
-  }
-  return playerId;
+// Initialize anonymous auth session and return user ID
+// Replaces the old localStorage-based player ID with server-verified auth
+export const ensureAnonymousAuth = async (): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) return session.user.id;
+
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error || !data.user) throw new Error('Failed to create anonymous session');
+  return data.user.id;
 };
 
 // ==================== MORPION ====================
