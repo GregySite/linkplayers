@@ -246,6 +246,25 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
     return { error: 'Not a participant in this game' }
   }
 
+  // Only allow updates to games that are currently being played
+  if (game.status !== 'playing') {
+    console.warn(`Attempt to update game ${game_id} with status ${game.status}`)
+    return { error: 'Game is not in progress' }
+  }
+
+  // Turn enforcement: verify it's the player's turn
+  // Exceptions: RPS (simultaneous choices) and Battleship placement phase
+  const currentState = game.game_state as Record<string, unknown>
+  const isSimultaneousGame = game.game_type === 'rps'
+  const isBattleshipPlacement = game.game_type === 'battleship' && currentState.phase === 'placement'
+
+  if (!isSimultaneousGame && !isBattleshipPlacement) {
+    if (game.current_turn && game.current_turn !== playerId) {
+      console.warn(`Out-of-turn move by ${playerId} on game ${game_id} (turn: ${game.current_turn})`)
+      return { error: 'Not your turn' }
+    }
+  }
+
   // Validate game state structure
   const validationError = validateGameState(game.game_type, game_state as Record<string, unknown>)
   if (validationError) {
@@ -253,14 +272,37 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
     return { error: validationError }
   }
 
-  // Build update payload with sanitized additional_updates
+  // Build update payload — protect critical fields
   const updatePayload: Record<string, unknown> = { game_state }
   if (additional_updates && typeof additional_updates === 'object') {
-    const allowed = ['current_turn', 'status', 'winner']
-    for (const key of allowed) {
-      if (key in (additional_updates as Record<string, unknown>)) {
-        updatePayload[key] = (additional_updates as Record<string, unknown>)[key]
+    const addUpdates = additional_updates as Record<string, unknown>
+
+    // Validate current_turn: must be one of the two players or null
+    if ('current_turn' in addUpdates) {
+      const newTurn = addUpdates.current_turn
+      if (newTurn !== null && newTurn !== game.player1_id && newTurn !== game.player2_id) {
+        return { error: 'Invalid current_turn value' }
       }
+      updatePayload.current_turn = newTurn
+    }
+
+    // Validate winner: must be one of the two players or null
+    if ('winner' in addUpdates) {
+      const newWinner = addUpdates.winner
+      if (newWinner !== null && newWinner !== game.player1_id && newWinner !== game.player2_id) {
+        return { error: 'Invalid winner value' }
+      }
+      updatePayload.winner = newWinner
+    }
+
+    // Validate status: only allow transition to 'finished', and only with a winner or draw
+    if ('status' in addUpdates) {
+      const newStatus = addUpdates.status
+      if (newStatus !== 'finished') {
+        return { error: 'Can only set status to finished' }
+      }
+      // A game can only be finished if a winner is being set or it's a draw (winner = null)
+      updatePayload.status = 'finished'
     }
   }
 
