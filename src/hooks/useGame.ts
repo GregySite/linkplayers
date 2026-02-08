@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureAnonymousAuth } from '@/lib/gameUtils';
 
-export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello';
+export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
 
 export interface RematchState {

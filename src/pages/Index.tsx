@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers } from 'lucide-react';
 import { GameCard } from '@/components/GameCard';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,9 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'connect4', title: 'Puissance 4', description: 'Fais tomber tes jetons et aligne-en 4 pour gagner !', icon: <Circle className="w-6 h-6" /> },
   { type: 'rps', title: 'Pierre-Papier-Ciseaux', description: 'Best of 3 — choisis ta main et bats ton adversaire !', icon: <Hand className="w-6 h-6" /> },
   { type: 'othello', title: 'Othello', description: 'Encadre les pions adverses pour les capturer. Stratégie pure !', icon: <Disc className="w-6 h-6" /> },
+  { type: 'pendu', title: 'Pendu', description: 'Choisis un mot et fais deviner ton adversaire lettre par lettre !', icon: <PenLine className="w-6 h-6" /> },
+  { type: 'dames', title: 'Dames', description: 'Le jeu de dames classique sur plateau 10×10. Capture les pions adverses !', icon: <Crown className="w-6 h-6" /> },
+  { type: 'memory', title: 'Memory', description: 'Retourne les cartes et trouve les paires avant ton adversaire !', icon: <Layers className="w-6 h-6" /> },
 ];
 
 const Index = () => {

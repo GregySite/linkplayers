@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -35,6 +35,40 @@ function createOthelloBoard(): (string | null)[] {
   return board
 }
 
+function createDamesBoard(): (string | null)[] {
+  const board: (string | null)[] = Array(100).fill(null)
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 10; col++) {
+      if ((row + col) % 2 === 1) board[row * 10 + col] = 'black'
+    }
+  }
+  for (let row = 6; row < 10; row++) {
+    for (let col = 0; col < 10; col++) {
+      if ((row + col) % 2 === 1) board[row * 10 + col] = 'white'
+    }
+  }
+  return board
+}
+
+const MEMORY_EMOJIS = [
+  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼',
+  '🐨', '🐯',
+]
+
+function createMemoryCards(): unknown[] {
+  const cards: unknown[] = []
+  MEMORY_EMOJIS.forEach((emoji, idx) => {
+    cards.push({ id: idx * 2, emoji, flipped: false, matched: false })
+    cards.push({ id: idx * 2 + 1, emoji, flipped: false, matched: false })
+  })
+  // Shuffle
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]]
+  }
+  return cards
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -56,6 +90,17 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       }
     case 'othello':
       return { board: createOthelloBoard(), currentColor: 'black', ...base }
+    case 'pendu':
+      return { word: null, guessedLetters: [], ...base }
+    case 'dames':
+      return { board: createDamesBoard(), currentColor: 'white', ...base }
+    case 'memory':
+      return {
+        cards: createMemoryCards(),
+        flippedIndices: [],
+        memoryScores: { player1: 0, player2: 0 },
+        ...base,
+      }
     default:
       return base
   }
@@ -120,6 +165,42 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
         if (typeof bestOf !== 'number' || bestOf < 1 || bestOf > 11) {
           return 'Invalid bestOf value'
         }
+      }
+      break
+    }
+    case 'pendu': {
+      // word can be null (not set yet) or a string
+      if (state.word !== null && state.word !== undefined && typeof state.word !== 'string') {
+        return 'Invalid pendu word'
+      }
+      if (state.guessedLetters !== undefined && !Array.isArray(state.guessedLetters)) {
+        return 'guessedLetters must be an array'
+      }
+      break
+    }
+    case 'dames': {
+      if (state.board !== undefined) {
+        if (!Array.isArray(state.board) || state.board.length !== 100) {
+          return 'Dames board must be an array of 100 elements'
+        }
+        const validPieces = [null, 'white', 'black', 'whiteKing', 'blackKing']
+        for (const cell of state.board) {
+          if (!validPieces.includes(cell as string | null)) {
+            return 'Invalid dames board cell value'
+          }
+        }
+      }
+      if (state.currentColor !== undefined && state.currentColor !== 'white' && state.currentColor !== 'black') {
+        return 'Invalid dames currentColor'
+      }
+      break
+    }
+    case 'memory': {
+      if (state.cards !== undefined && !Array.isArray(state.cards)) {
+        return 'Memory cards must be an array'
+      }
+      if (state.flippedIndices !== undefined && !Array.isArray(state.flippedIndices)) {
+        return 'flippedIndices must be an array'
       }
       break
     }
@@ -202,7 +283,7 @@ async function handleJoin(supabase: ReturnType<typeof createClient>, playerId: s
     return { error: 'Game is already full' }
   }
 
-  // Atomic join - race condition fix: only update if player2_id is still null
+  // Atomic join
   const { data, error: updateError } = await supabase
     .from('games')
     .update({ player2_id: playerId, status: 'playing' })
@@ -230,7 +311,6 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
     return { error: 'game_state is required' }
   }
 
-  // Fetch game and verify player is a participant
   const { data: game, error: fetchError } = await supabase
     .from('games')
     .select('*')
@@ -246,19 +326,19 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
     return { error: 'Not a participant in this game' }
   }
 
-  // Only allow updates to games that are currently being played
   if (game.status !== 'playing') {
     console.warn(`Attempt to update game ${game_id} with status ${game.status}`)
     return { error: 'Game is not in progress' }
   }
 
-  // Turn enforcement: verify it's the player's turn
-  // Exceptions: RPS (simultaneous choices) and Battleship placement phase
+  // Turn enforcement exceptions
   const currentState = game.game_state as Record<string, unknown>
   const isSimultaneousGame = game.game_type === 'rps'
   const isBattleshipPlacement = game.game_type === 'battleship' && currentState.phase === 'placement'
+  // Pendu: player1 sets the word (no turn check needed for that), then player2 guesses
+  const isPenduWordSetting = game.game_type === 'pendu' && !currentState.word
 
-  if (!isSimultaneousGame && !isBattleshipPlacement) {
+  if (!isSimultaneousGame && !isBattleshipPlacement && !isPenduWordSetting) {
     if (game.current_turn && game.current_turn !== playerId) {
       console.warn(`Out-of-turn move by ${playerId} on game ${game_id} (turn: ${game.current_turn})`)
       return { error: 'Not your turn' }
@@ -277,7 +357,6 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
   if (additional_updates && typeof additional_updates === 'object') {
     const addUpdates = additional_updates as Record<string, unknown>
 
-    // Validate current_turn: must be one of the two players or null
     if ('current_turn' in addUpdates) {
       const newTurn = addUpdates.current_turn
       if (newTurn !== null && newTurn !== game.player1_id && newTurn !== game.player2_id) {
@@ -286,7 +365,6 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
       updatePayload.current_turn = newTurn
     }
 
-    // Validate winner: must be one of the two players or null
     if ('winner' in addUpdates) {
       const newWinner = addUpdates.winner
       if (newWinner !== null && newWinner !== game.player1_id && newWinner !== game.player2_id) {
@@ -295,13 +373,11 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
       updatePayload.winner = newWinner
     }
 
-    // Validate status: only allow transition to 'finished', and only with a winner or draw
     if ('status' in addUpdates) {
       const newStatus = addUpdates.status
       if (newStatus !== 'finished') {
         return { error: 'Can only set status to finished' }
       }
-      // A game can only be finished if a winner is being set or it's a draw (winner = null)
       updatePayload.status = 'finished'
     }
   }
@@ -388,7 +464,6 @@ async function handleStartRematch(supabase: ReturnType<typeof createClient>, pla
     return { error: 'Game not found' }
   }
 
-  // Only player1 can trigger rematch
   if (game.player1_id !== playerId) {
     return { error: 'Only player1 can start rematch' }
   }
@@ -401,7 +476,6 @@ async function handleStartRematch(supabase: ReturnType<typeof createClient>, pla
     return { error: 'Both players must agree to rematch' }
   }
 
-  // Calculate updated scores
   const currentScores = (currentState.scores as { player1: number; player2: number }) || { player1: 0, player2: 0 }
   const newScores = { ...currentScores }
   if (game.winner === game.player1_id) {
@@ -445,7 +519,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify authentication via JWT
     const authHeader = req.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Authentication required' }), {
@@ -454,7 +527,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Verify the user's identity using their JWT
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -473,7 +545,6 @@ Deno.serve(async (req) => {
     const playerId = claimsData.claims.sub as string
     console.log(`Authenticated request from user ${playerId}`)
 
-    // Service role client for database operations (bypasses RLS)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

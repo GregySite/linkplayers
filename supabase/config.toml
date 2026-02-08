@@ -2,3 +2,6 @@ project_id = "zmkvlavnmdhzxcqtvqzt"
 
 [functions.game-actions]
 verify_jwt = false
+
+[functions.validate-word]
+verify_jwt = false

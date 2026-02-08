@@ -72,6 +72,9 @@ export type Database = {
         | "rps"
         | "othello"
         | "emoji_quiz"
+        | "pendu"
+        | "dames"
+        | "memory"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -207,6 +210,9 @@ export const Constants = {
         "rps",
         "othello",
         "emoji_quiz",
+        "pendu",
+        "dames",
+        "memory",
       ],
     },
   },

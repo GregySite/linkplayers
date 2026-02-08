@@ -9,6 +9,9 @@ import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Connect4Game } from '@/components/games/Connect4Game';
 import { RPSGame } from '@/components/games/RPSGame';
 import { OthelloGame } from '@/components/games/OthelloGame';
+import { PenduGame } from '@/components/games/PenduGame';
+import { DamesGame } from '@/components/games/DamesGame';
+import { MemoryGame } from '@/components/games/MemoryGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
@@ -18,6 +21,9 @@ import {
   determineRPSWinner, RPSChoice, RPSRound,
   OthelloCell, applyOthelloMove, getValidOthelloMoves, isOthelloGameOver, countOthelloPieces,
 } from '@/lib/gameUtils';
+import { isPenduWon, isPenduLost, normalizeWord, getWrongGuessCount, PENDU_MAX_ERRORS } from '@/lib/penduUtils';
+import { DamesMove, applyDamesMove, isDamesGameOver, countDamesPieces } from '@/lib/damesUtils';
+import { MemoryCard, isMemoryGameOver, checkMemoryMatch } from '@/lib/memoryUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -25,7 +31,9 @@ const GAME_TITLES: Record<string, string> = {
   connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux',
   othello: 'Othello',
-  
+  pendu: 'Pendu',
+  dames: 'Dames',
+  memory: 'Memory',
 };
 
 const GamePage = () => {
@@ -111,7 +119,6 @@ const GamePage = () => {
     const choiceKey = amPlayer1 ? 'player1Choice' : 'player2Choice';
     const newState = { ...gameState, [choiceKey]: choice };
 
-    // Check if both have chosen
     const p1Choice = amPlayer1 ? choice : (gameState.player1Choice as RPSChoice | null);
     const p2Choice = !amPlayer1 ? choice : (gameState.player2Choice as RPSChoice | null);
 
@@ -119,7 +126,6 @@ const GamePage = () => {
       const roundResult = determineRPSWinner(p1Choice, p2Choice);
       const rounds = [...((gameState.rounds as RPSRound[]) || []), { player1Choice: p1Choice, player2Choice: p2Choice, winner: roundResult }];
 
-      // After a short delay the state resets for next round
       await updateGameState({
         ...gameState,
         player1Choice: choice === p1Choice ? choice : gameState.player1Choice,
@@ -129,7 +135,6 @@ const GamePage = () => {
         currentRound: (gameState.currentRound as number || 1) + 1,
       });
 
-      // Reset choices after 2 seconds for next round
       setTimeout(async () => {
         const bestOf = (gameState.bestOf as number) || 3;
         const winsNeeded = Math.ceil(bestOf / 2);
@@ -160,7 +165,6 @@ const GamePage = () => {
     const opponentColor: OthelloCell = amPlayer1 ? 'white' : 'black';
     const newBoard = applyOthelloMove(board, pos, myColor);
 
-    // Check if opponent can play, otherwise skip to current player again
     const opponentMoves = getValidOthelloMoves(newBoard, opponentColor);
     let nextTurn = amPlayer1 ? game.player2_id : game.player1_id;
     let nextColor: OthelloCell = opponentColor;
@@ -168,7 +172,6 @@ const GamePage = () => {
     if (opponentMoves.length === 0) {
       const myMoves = getValidOthelloMoves(newBoard, myColor);
       if (myMoves.length === 0) {
-        // Game over
         const pieces = countOthelloPieces(newBoard);
         const winner = pieces.black > pieces.white ? game.player1_id : pieces.white > pieces.black ? game.player2_id : null;
         await updateGameState({ ...gameState, board: newBoard, currentColor: null }, { status: 'finished' as any, winner });
@@ -181,6 +184,123 @@ const GamePage = () => {
     await updateGameState({ ...gameState, board: newBoard, currentColor: nextColor }, { current_turn: nextTurn });
   };
 
+  // ==================== PENDU HANDLERS ====================
+
+  const handlePenduSetWord = async (word: string) => {
+    // Player 1 sets the word, turn goes to player 2
+    await updateGameState(
+      { ...gameState, word },
+      { current_turn: game.player2_id }
+    );
+  };
+
+  const handlePenduGuess = async (letter: string) => {
+    const word = gameState.word as string;
+    const guessedLetters = [...((gameState.guessedLetters as string[]) || []), letter];
+    const normalized = normalizeWord(word);
+
+    // Check win/loss after this guess
+    const won = normalized.split('').every(l => guessedLetters.includes(l));
+    const errors = guessedLetters.filter(l => !normalized.includes(l)).length;
+    const lost = errors >= PENDU_MAX_ERRORS;
+
+    if (won) {
+      await updateGameState(
+        { ...gameState, guessedLetters },
+        { status: 'finished' as any, winner: game.player2_id } // guesser wins
+      );
+    } else if (lost) {
+      await updateGameState(
+        { ...gameState, guessedLetters },
+        { status: 'finished' as any, winner: game.player1_id } // chooser wins
+      );
+    } else {
+      // Stay on player 2's turn (they keep guessing)
+      await updateGameState({ ...gameState, guessedLetters });
+    }
+  };
+
+  // ==================== DAMES HANDLER ====================
+
+  const handleDamesMove = async (move: DamesMove) => {
+    const board = (gameState.board as import('@/lib/damesUtils').DamesPiece[]);
+    const newBoard = applyDamesMove(board, move);
+    const myColor = amPlayer1 ? 'white' : 'black';
+    const opponentColor = amPlayer1 ? 'black' : 'white';
+    const nextTurn = amPlayer1 ? game.player2_id : game.player1_id;
+
+    // Check if opponent can move
+    if (isDamesGameOver(newBoard, opponentColor)) {
+      // Current player wins
+      await updateGameState(
+        { ...gameState, board: newBoard, currentColor: opponentColor },
+        { status: 'finished' as any, winner: playerId }
+      );
+    } else {
+      await updateGameState(
+        { ...gameState, board: newBoard, currentColor: opponentColor },
+        { current_turn: nextTurn }
+      );
+    }
+  };
+
+  // ==================== MEMORY HANDLER ====================
+
+  const handleMemoryFlip = async (cardIndex: number) => {
+    const cards = [...(gameState.cards as MemoryCard[])];
+    const flippedIndices = [...((gameState.flippedIndices as number[]) || [])];
+    const memoryScores = { ...((gameState.memoryScores as { player1: number; player2: number }) || { player1: 0, player2: 0 }) };
+
+    if (flippedIndices.length === 0) {
+      // First card flip
+      cards[cardIndex] = { ...cards[cardIndex], flipped: true };
+      await updateGameState({ ...gameState, cards, flippedIndices: [cardIndex] });
+    } else if (flippedIndices.length === 1) {
+      // Second card flip
+      const firstIdx = flippedIndices[0];
+      cards[cardIndex] = { ...cards[cardIndex], flipped: true };
+
+      if (cards[firstIdx].emoji === cards[cardIndex].emoji) {
+        // Match found! Player keeps their turn and scores
+        cards[firstIdx] = { ...cards[firstIdx], matched: true };
+        cards[cardIndex] = { ...cards[cardIndex], matched: true };
+        const scoreKey = amPlayer1 ? 'player1' : 'player2';
+        memoryScores[scoreKey] += 1;
+
+        // Check if game is over
+        const allMatched = cards.every(c => c.matched);
+        if (allMatched) {
+          const winner = memoryScores.player1 > memoryScores.player2
+            ? game.player1_id
+            : memoryScores.player2 > memoryScores.player1
+            ? game.player2_id
+            : null;
+          await updateGameState(
+            { ...gameState, cards, flippedIndices: [], memoryScores },
+            { status: 'finished' as any, winner }
+          );
+        } else {
+          // Same player continues
+          await updateGameState({ ...gameState, cards, flippedIndices: [], memoryScores });
+        }
+      } else {
+        // No match - show both cards briefly, then flip back and switch turns
+        await updateGameState({ ...gameState, cards, flippedIndices: [firstIdx, cardIndex] });
+
+        // After delay, flip cards back and switch turns
+        setTimeout(async () => {
+          const resetCards = [...cards];
+          resetCards[firstIdx] = { ...resetCards[firstIdx], flipped: false };
+          resetCards[cardIndex] = { ...resetCards[cardIndex], flipped: false };
+          const nextTurn = amPlayer1 ? game.player2_id : game.player1_id;
+          await updateGameState(
+            { ...gameState, cards: resetCards, flippedIndices: [], memoryScores },
+            { current_turn: nextTurn }
+          );
+        }, 1500);
+      }
+    }
+  };
 
   // ==================== GAME OVER CHECK ====================
 
@@ -205,7 +325,21 @@ const GamePage = () => {
       const board = (gameState as { board: OthelloCell[] }).board || [];
       return isOthelloGameOver(board);
     }
-    // RPS and emoji_quiz are finished via status field
+    if (game.game_type === 'pendu') {
+      const word = gameState.word as string | null;
+      if (!word) return false;
+      const guessedLetters = (gameState.guessedLetters as string[]) || [];
+      return isPenduWon(word, guessedLetters) || isPenduLost(word, guessedLetters);
+    }
+    if (game.game_type === 'dames') {
+      const board = (gameState.board as import('@/lib/damesUtils').DamesPiece[]) || [];
+      const currentColor = (gameState.currentColor as 'white' | 'black') || 'white';
+      return isDamesGameOver(board, currentColor);
+    }
+    if (game.game_type === 'memory') {
+      const cards = (gameState.cards as MemoryCard[]) || [];
+      return isMemoryGameOver(cards);
+    }
     return false;
   };
 
@@ -233,6 +367,12 @@ const GamePage = () => {
         return <RPSGame game={game} playerId={playerId} onChoice={handleRPSChoice} />;
       case 'othello':
         return <OthelloGame game={game} playerId={playerId} onMove={handleOthelloMove} />;
+      case 'pendu':
+        return <PenduGame game={game} playerId={playerId} onMove={handlePenduGuess} onSetWord={handlePenduSetWord} />;
+      case 'dames':
+        return <DamesGame game={game} playerId={playerId} onMove={handleDamesMove} />;
+      case 'memory':
+        return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       default:
         return <p className="text-muted-foreground">Jeu non supporté</p>;
     }
