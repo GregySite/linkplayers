@@ -9,7 +9,7 @@ import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Connect4Game } from '@/components/games/Connect4Game';
 import { RPSGame } from '@/components/games/RPSGame';
 import { OthelloGame } from '@/components/games/OthelloGame';
-import { EmojiQuizGame } from '@/components/games/EmojiQuizGame';
+
 import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +25,7 @@ const GAME_TITLES: Record<string, string> = {
   connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux',
   othello: 'Othello',
-  emoji_quiz: 'Quiz Emoji',
+  
 };
 
 const GamePage = () => {
@@ -181,41 +181,6 @@ const GamePage = () => {
     await updateGameState({ ...gameState, board: newBoard, currentColor: nextColor }, { current_turn: nextTurn });
   };
 
-  const handleEmojiSend = async (emojis: string, answer: string) => {
-    await updateGameState({ ...gameState, emojis, answer });
-  };
-
-  const handleEmojiGuess = async (guess: string) => {
-    await updateGameState({ ...gameState, guess, judging: true });
-  };
-
-  const handleEmojiJudge = async (correct: boolean) => {
-    const rounds = [...((gameState.rounds as any[]) || []), {
-      emojis: gameState.emojis, answer: gameState.answer, guess: gameState.guess,
-      correct, master: gameState.currentMaster,
-    }];
-    const nextMaster = gameState.currentMaster === 'player1' ? 'player2' : 'player1';
-    const nextTurn = nextMaster === 'player1' ? game.player1_id : game.player2_id;
-    await updateGameState({
-      ...gameState, rounds, currentMaster: nextMaster,
-      emojis: '', answer: '', guess: '', judging: false,
-      currentRound: (gameState.currentRound as number || 1) + 1,
-    }, { current_turn: nextTurn });
-  };
-
-  const handleEmojiSkip = async () => {
-    const rounds = [...((gameState.rounds as any[]) || []), {
-      emojis: gameState.emojis, answer: gameState.answer, guess: '(passé)',
-      correct: false, master: gameState.currentMaster,
-    }];
-    const nextMaster = gameState.currentMaster === 'player1' ? 'player2' : 'player1';
-    const nextTurn = nextMaster === 'player1' ? game.player1_id : game.player2_id;
-    await updateGameState({
-      ...gameState, rounds, currentMaster: nextMaster,
-      emojis: '', answer: '', guess: '', judging: false,
-      currentRound: (gameState.currentRound as number || 1) + 1,
-    }, { current_turn: nextTurn });
-  };
 
   // ==================== GAME OVER CHECK ====================
 
@@ -268,8 +233,6 @@ const GamePage = () => {
         return <RPSGame game={game} playerId={playerId} onChoice={handleRPSChoice} />;
       case 'othello':
         return <OthelloGame game={game} playerId={playerId} onMove={handleOthelloMove} />;
-      case 'emoji_quiz':
-        return <EmojiQuizGame game={game} playerId={playerId} onSendEmojis={handleEmojiSend} onGuess={handleEmojiGuess} onJudge={handleEmojiJudge} onSkip={handleEmojiSkip} />;
       default:
         return <p className="text-muted-foreground">Jeu non supporté</p>;
     }
