@@ -191,17 +191,17 @@ export const determineRPSWinner = (p1: RPSChoice, p2: RPSChoice): 'player1' | 'p
 
 export const getRPSLabel = (choice: RPSChoice): string => {
   switch (choice) {
-    case 'rock': return '🪨 Pierre';
-    case 'paper': return '📄 Papier';
-    case 'scissors': return '✂️ Ciseaux';
+    case 'rock': return '✊ Pierre';
+    case 'paper': return '✋ Papier';
+    case 'scissors': return '✌️ Ciseaux';
   }
 };
 
 export const getRPSEmoji = (choice: RPSChoice): string => {
   switch (choice) {
-    case 'rock': return '🪨';
-    case 'paper': return '📄';
-    case 'scissors': return '✂️';
+    case 'rock': return '✊';
+    case 'paper': return '✋';
+    case 'scissors': return '✌️';
   }
 };
 

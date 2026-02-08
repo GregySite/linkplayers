@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'emoji_quiz'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'emoji_quiz']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -56,11 +56,6 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       }
     case 'othello':
       return { board: createOthelloBoard(), currentColor: 'black', ...base }
-    case 'emoji_quiz':
-      return {
-        currentMaster: 'player1', emojis: '', answer: '', guess: '',
-        rounds: [], currentRound: 1, judging: false, ...base,
-      }
     default:
       return base
   }
@@ -125,24 +120,6 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
         if (typeof bestOf !== 'number' || bestOf < 1 || bestOf > 11) {
           return 'Invalid bestOf value'
         }
-      }
-      break
-    }
-    case 'emoji_quiz': {
-      if (state.emojis !== undefined && typeof state.emojis !== 'string') {
-        return 'Emojis must be a string'
-      }
-      if (state.answer !== undefined && typeof state.answer !== 'string') {
-        return 'Answer must be a string'
-      }
-      if (typeof state.emojis === 'string' && state.emojis.length > 200) {
-        return 'Emojis too long'
-      }
-      if (typeof state.answer === 'string' && state.answer.length > 500) {
-        return 'Answer too long'
-      }
-      if (typeof state.guess === 'string' && (state.guess as string).length > 500) {
-        return 'Guess too long'
       }
       break
     }
