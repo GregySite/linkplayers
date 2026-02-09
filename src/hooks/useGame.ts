@@ -163,18 +163,52 @@ export const useGame = (gameCode?: string) => {
     return data as Game;
   }, [game]);
 
-  // Subscribe to realtime updates (RLS ensures only participant games are visible)
+  // Subscribe to realtime updates with reconnection logic
   useEffect(() => {
-    if (!gameCode) return;
-    const channel = supabase
-      .channel(`game-${gameCode}`)
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'games',
-        filter: `code=eq.${gameCode.toUpperCase()}`,
-      }, (payload) => { setGame(payload.new as Game); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [gameCode]);
+    if (!gameCode || !playerId) return;
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
+
+    const connect = () => {
+      if (disposed) return;
+
+      // Clean up previous channel if any
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+
+      channel = supabase
+        .channel(`game-${gameCode}-${Date.now()}`)
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'games',
+          filter: `code=eq.${gameCode.toUpperCase()}`,
+        }, (payload) => {
+          if (!disposed) setGame(payload.new as Game);
+        })
+        .subscribe((status, err) => {
+          if (disposed) return;
+          if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            console.warn(`Realtime channel ${status}, reconnecting in 2s...`, err);
+            // Re-fetch current state to stay in sync
+            fetchGame(gameCode);
+            // Schedule reconnection
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            reconnectTimeout = setTimeout(connect, 2000);
+          }
+        });
+    };
+
+    connect();
+
+    return () => {
+      disposed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [gameCode, playerId, fetchGame]);
 
   // Fetch game once auth is ready
   useEffect(() => {
