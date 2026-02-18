@@ -100,3 +100,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* --- DESTRUCTION TOTALE DU BADGE LOVABLE --- */
+
+/* 1. Cache le lien lui-même */
+a[href*="lovable.dev"] {
+    display: none !important;
+}
+
+/* 2. MAGIE : Cache le bloc PARENT qui contient le lien */
+/* Cela va supprimer le carré noir, la croix et tout le conteneur */
+div:has(> a[href*="lovable.dev"]),
+div:has(a[href*="lovable.dev"]) {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* 3. Sécurité : Cache par ID connus (souvent utilisés par ces outils) */
+#lovable-badge,
+#gpt-engineer-badge,
+.lovable-badge-container {
+    display: none !important;
+}
