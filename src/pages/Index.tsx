@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot } from 'lucide-react';
 import { GameCard } from '@/components/GameCard';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,21 @@ const Index = () => {
             <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-4 text-center font-medium">Choisir un jeu</h2>
             <div className="grid gap-4">
               {GAMES.map((g) => (
-                <GameCard key={g.type} type={g.type} title={g.title} description={g.description} icon={g.icon} onClick={() => handleCreateGame(g.type)} />
+                <div key={g.type} className="flex gap-2 items-stretch">
+                  <div className="flex-1">
+                    <GameCard type={g.type} title={g.title} description={g.description} icon={g.icon} onClick={() => handleCreateGame(g.type)} />
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate(`/solo/${g.type}`)}
+                    className="flex flex-col items-center justify-center gap-1 px-4 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                    title="Jouer seul contre l'ordi"
+                  >
+                    <Bot className="w-5 h-5 text-primary" />
+                    <span className="text-xs text-muted-foreground font-medium">Solo</span>
+                  </motion.button>
+                </div>
               ))}
             </div>
           </motion.div>
