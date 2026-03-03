@@ -163,22 +163,41 @@ export const useGame = (gameCode?: string) => {
     return data as Game;
   }, [game]);
 
-  // Subscribe to realtime updates with reconnection logic
+  // Subscribe to realtime updates with reconnection + polling fallback
   useEffect(() => {
     if (!gameCode || !playerId) return;
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
     let disposed = false;
+    let realtimeHealthy = false;
+
+    // Polling fallback: fetches every 3s when realtime is unhealthy
+    const startPolling = () => {
+      if (pollInterval || disposed) return;
+      console.log('[Game] Starting polling fallback');
+      pollInterval = setInterval(() => {
+        if (!disposed) fetchGame(gameCode);
+      }, 3000);
+    };
+
+    const stopPolling = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
 
     const connect = () => {
       if (disposed) return;
 
-      // Clean up previous channel if any
       if (channel) {
         supabase.removeChannel(channel);
         channel = null;
       }
+
+      realtimeHealthy = false;
 
       channel = supabase
         .channel(`game-${gameCode}-${Date.now()}`)
@@ -190,21 +209,34 @@ export const useGame = (gameCode?: string) => {
         })
         .subscribe((status, err) => {
           if (disposed) return;
-          if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-            console.warn(`Realtime channel ${status}, reconnecting in 2s...`, err);
-            // Re-fetch current state to stay in sync
+          if (status === 'SUBSCRIBED') {
+            realtimeHealthy = true;
+            stopPolling();
+            // Fetch once to sync after reconnect
             fetchGame(gameCode);
-            // Schedule reconnection
+          } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            console.warn(`Realtime channel ${status}, reconnecting in 2s...`, err);
+            realtimeHealthy = false;
+            startPolling();
+            fetchGame(gameCode);
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
             reconnectTimeout = setTimeout(connect, 2000);
           }
         });
+
+      // Safety net: if not subscribed after 5s, start polling
+      setTimeout(() => {
+        if (!disposed && !realtimeHealthy) {
+          startPolling();
+        }
+      }, 5000);
     };
 
     connect();
 
     return () => {
       disposed = true;
+      stopPolling();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (channel) supabase.removeChannel(channel);
     };

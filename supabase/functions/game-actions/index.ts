@@ -223,7 +223,10 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
 
 // ==================== ACTION HANDLERS ====================
 
-async function handleCreate(supabase: ReturnType<typeof createClient>, playerId: string, params: Record<string, unknown>) {
+// deno-lint-ignore no-explicit-any
+type SupabaseAny = any
+
+async function handleCreate(supabase: SupabaseAny, playerId: string, params: Record<string, unknown>) {
   const { game_type } = params
 
   if (!game_type || !VALID_GAME_TYPES.includes(game_type as GameType)) {
@@ -254,7 +257,7 @@ async function handleCreate(supabase: ReturnType<typeof createClient>, playerId:
   return { data }
 }
 
-async function handleJoin(supabase: ReturnType<typeof createClient>, playerId: string, params: Record<string, unknown>) {
+async function handleJoin(supabase: SupabaseAny, playerId: string, params: Record<string, unknown>) {
   const { code } = params
 
   if (!code || typeof code !== 'string') {
@@ -301,7 +304,7 @@ async function handleJoin(supabase: ReturnType<typeof createClient>, playerId: s
   return { data }
 }
 
-async function handleUpdateState(supabase: ReturnType<typeof createClient>, playerId: string, params: Record<string, unknown>) {
+async function handleUpdateState(supabase: SupabaseAny, playerId: string, params: Record<string, unknown>) {
   const { game_id, game_state, additional_updates } = params
 
   if (!game_id || typeof game_id !== 'string') {
@@ -397,7 +400,7 @@ async function handleUpdateState(supabase: ReturnType<typeof createClient>, play
   return { data }
 }
 
-async function handleVoteRematch(supabase: ReturnType<typeof createClient>, playerId: string, params: Record<string, unknown>) {
+async function handleVoteRematch(supabase: SupabaseAny, playerId: string, params: Record<string, unknown>) {
   const { game_id, want_rematch } = params
 
   if (!game_id || typeof game_id !== 'string') {
@@ -447,7 +450,7 @@ async function handleVoteRematch(supabase: ReturnType<typeof createClient>, play
   return { data }
 }
 
-async function handleStartRematch(supabase: ReturnType<typeof createClient>, playerId: string, params: Record<string, unknown>) {
+async function handleStartRematch(supabase: SupabaseAny, playerId: string, params: Record<string, unknown>) {
   const { game_id } = params
 
   if (!game_id || typeof game_id !== 'string') {
