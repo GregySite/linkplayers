@@ -49,13 +49,18 @@ export const useSoloGame = (gameType: GameType) => {
     }
   };
 
+  // For pendu, human is player2 (guesser) and CPU is player1 (word chooser)
+  const isPendu = gameType === 'pendu';
+  const p1 = isPendu ? cpuId : humanId;
+  const p2 = isPendu ? humanId : cpuId;
+
   const [game, setGame] = useState<Game>({
     id: 'solo',
     code: 'SOLO',
     game_type: gameType,
     status: 'playing' as GameStatus,
-    player1_id: humanId,
-    player2_id: cpuId,
+    player1_id: p1,
+    player2_id: p2,
     current_turn: humanId,
     winner: null,
     game_state: getInitialState(),
@@ -88,8 +93,8 @@ export const useSoloGame = (gameType: GameType) => {
       code: 'SOLO',
       game_type: gameType,
       status: 'playing',
-      player1_id: humanId,
-      player2_id: cpuId,
+      player1_id: p1,
+      player2_id: p2,
       current_turn: humanId,
       winner: null,
       game_state: { ...getInitialState(), scores: newScores },
