@@ -103,7 +103,12 @@ const getCaptureMoves = (
 ): DamesMove[] => {
   const row = Math.floor(pos / 10);
   const col = pos % 10;
-  const dirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  // Regular pieces can only capture forward; kings can capture in all directions
+  const dirs = king
+    ? [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+    : color === 'white'
+      ? [[-1, -1], [-1, 1]]
+      : [[1, -1], [1, 1]];
   const results: DamesMove[] = [];
   
   for (const [dr, dc] of dirs) {
