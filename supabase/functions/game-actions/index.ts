@@ -487,11 +487,19 @@ async function handleStartRematch(supabase: SupabaseAny, playerId: string, param
     newScores.player2 += 1
   }
 
+  // Alternate starting player: track rematch count
+  const rematchCount = ((currentState.rematchCount as number) || 0) + 1
+  const startsFirst = rematchCount % 2 === 0 ? game.player1_id : game.player2_id
+
   const freshState = getInitialState(game.game_type as GameType, {
     scores: newScores,
+    rematchCount,
     player1WantsRematch: null,
     player2WantsRematch: null,
   })
+
+  // For pendu, if player2 starts, they choose the word (swap roles)
+  const penduTurn = game.game_type === 'pendu' ? startsFirst : startsFirst
 
   const { data, error: updateError } = await supabase
     .from('games')
@@ -499,7 +507,7 @@ async function handleStartRematch(supabase: SupabaseAny, playerId: string, param
       game_state: freshState,
       status: 'playing',
       winner: null,
-      current_turn: game.player1_id,
+      current_turn: startsFirst,
     })
     .eq('id', game_id)
     .select()
