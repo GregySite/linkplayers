@@ -96,7 +96,7 @@ export const useGame = (gameCode?: string) => {
     setLoading(true);
     setError(null);
 
-    const { data, error: actionError } = await invokeGameAction('join', { code: code.toUpperCase() });
+    const { data, error: actionError } = await invokeGameAction('join', playerId, { code: code.toUpperCase() });
 
     if (actionError) {
       setError(actionError === 'Game not found' ? 'Code invalide - partie non trouvée' :
