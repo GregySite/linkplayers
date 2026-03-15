@@ -131,7 +131,7 @@ export const useGame = (gameCode?: string) => {
   const voteRematch = useCallback(async (wantRematch: boolean) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('vote_rematch', {
+    const { data, error: actionError } = await invokeGameAction('vote_rematch', playerId, {
       game_id: game.id,
       want_rematch: wantRematch,
     });
