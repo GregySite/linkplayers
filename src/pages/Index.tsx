@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot } from 'lucide-react';
 import { GameCard } from '@/components/GameCard';
 import { JoinGameModal } from '@/components/JoinGameModal';
+import { AuthButton } from '@/components/AuthButton';
 import { Button } from '@/components/ui/button';
 import { useGame, GameType } from '@/hooks/useGame';
 
@@ -35,6 +36,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
+      {/* Top bar with auth */}
+      <div className="absolute top-4 right-4 z-20">
+        <AuthButton />
+      </div>
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
