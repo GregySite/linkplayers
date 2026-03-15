@@ -117,7 +117,7 @@ export const useGame = (gameCode?: string) => {
   ) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('update_state', {
+    const { data, error: actionError } = await invokeGameAction('update_state', playerId, {
       game_id: game.id,
       game_state: newState,
       additional_updates: additionalUpdates || {},
