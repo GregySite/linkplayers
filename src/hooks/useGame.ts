@@ -230,12 +230,12 @@ export const useGame = (gameCode?: string) => {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (channel) supabase.removeChannel(channel);
     };
-  }, [gameCode, playerId, fetchGame]);
+  }, [gameCode, fetchGame]);
 
-  // Fetch game once auth is ready
+  // Fetch game on mount
   useEffect(() => {
-    if (gameCode && playerId) fetchGame(gameCode);
-  }, [gameCode, playerId, fetchGame]);
+    if (gameCode) fetchGame(gameCode);
+  }, [gameCode, fetchGame]);
 
   return { game, loading, error, playerId: playerId || '', createGame, joinGame, updateGameState, fetchGame, voteRematch, startRematch };
 };
