@@ -55,18 +55,10 @@ const invokeGameAction = async (action: string, params: Record<string, unknown> 
 };
 
 export const useGame = (gameCode?: string) => {
-  const { user } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const playerId = user?.id ?? null;
-
-  // Set loading to false once we have auth
-  useEffect(() => {
-    if (playerId && !gameCode) {
-      setLoading(false);
-    }
-  }, [playerId, gameCode]);
+  const playerId = getLocalPlayerId();
 
   // fetchGame reads directly (RLS now restricts to participants only)
   const fetchGame = useCallback(async (code: string) => {
