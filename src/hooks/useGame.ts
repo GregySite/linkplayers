@@ -237,5 +237,5 @@ export const useGame = (gameCode?: string) => {
     if (gameCode) fetchGame(gameCode);
   }, [gameCode, fetchGame]);
 
-  return { game, loading, error, playerId: playerId || '', createGame, joinGame, updateGameState, fetchGame, voteRematch, startRematch };
+  return { game, loading, error, playerId, createGame, joinGame, updateGameState, fetchGame, voteRematch, startRematch };
 };
