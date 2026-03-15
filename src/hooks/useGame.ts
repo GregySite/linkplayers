@@ -144,7 +144,7 @@ export const useGame = (gameCode?: string) => {
   const startRematch = useCallback(async (): Promise<Game | null> => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('start_rematch', {
+    const { data, error: actionError } = await invokeGameAction('start_rematch', playerId, {
       game_id: game.id,
     });
 
