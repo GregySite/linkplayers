@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ensureAnonymousAuth } from '@/lib/gameUtils';
+import { useAuth } from '@/hooks/useAuth';
 
 export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
@@ -46,29 +46,18 @@ const invokeGameAction = async (action: string, params: Record<string, unknown> 
 };
 
 export const useGame = (gameCode?: string) => {
+  const { user } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [playerId, setPlayerId] = useState<string | null>(null);
+  const playerId = user?.id ?? null;
 
-  // Initialize anonymous auth session
+  // Set loading to false once we have auth
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setPlayerId(session?.user?.id ?? null);
-    });
-
-    ensureAnonymousAuth()
-      .then(id => {
-        setPlayerId(id);
-        if (!gameCode) setLoading(false);
-      })
-      .catch(() => {
-        setError('Failed to initialize session');
-        setLoading(false);
-      });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    if (playerId && !gameCode) {
+      setLoading(false);
+    }
+  }, [playerId, gameCode]);
 
   // fetchGame reads directly (RLS now restricts to participants only)
   const fetchGame = useCallback(async (code: string) => {
