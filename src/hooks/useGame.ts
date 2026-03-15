@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+
+function getLocalPlayerId(): string {
+  const key = 'local_player_id';
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
 
 export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
@@ -27,9 +36,9 @@ export interface Game {
 
 // Helper to invoke the game-actions edge function
 // Auth is handled automatically via the Supabase client's JWT header
-const invokeGameAction = async (action: string, params: Record<string, unknown> = {}) => {
+const invokeGameAction = async (action: string, playerId: string, params: Record<string, unknown> = {}) => {
   const { data, error } = await supabase.functions.invoke('game-actions', {
-    body: { action, ...params },
+    body: { action, player_id: playerId, ...params },
   });
 
   if (error) {
@@ -46,18 +55,10 @@ const invokeGameAction = async (action: string, params: Record<string, unknown> 
 };
 
 export const useGame = (gameCode?: string) => {
-  const { user } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const playerId = user?.id ?? null;
-
-  // Set loading to false once we have auth
-  useEffect(() => {
-    if (playerId && !gameCode) {
-      setLoading(false);
-    }
-  }, [playerId, gameCode]);
+  const playerId = getLocalPlayerId();
 
   // fetchGame reads directly (RLS now restricts to participants only)
   const fetchGame = useCallback(async (code: string) => {
@@ -82,7 +83,7 @@ export const useGame = (gameCode?: string) => {
     setLoading(true);
     setError(null);
 
-    const { data, error: actionError } = await invokeGameAction('create', { game_type: gameType });
+    const { data, error: actionError } = await invokeGameAction('create', playerId, { game_type: gameType });
 
     if (actionError) { setError('Erreur lors de la création de la partie'); setLoading(false); return null; }
     setGame(data as Game);
@@ -95,7 +96,7 @@ export const useGame = (gameCode?: string) => {
     setLoading(true);
     setError(null);
 
-    const { data, error: actionError } = await invokeGameAction('join', { code: code.toUpperCase() });
+    const { data, error: actionError } = await invokeGameAction('join', playerId, { code: code.toUpperCase() });
 
     if (actionError) {
       setError(actionError === 'Game not found' ? 'Code invalide - partie non trouvée' :
@@ -116,7 +117,7 @@ export const useGame = (gameCode?: string) => {
   ) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('update_state', {
+    const { data, error: actionError } = await invokeGameAction('update_state', playerId, {
       game_id: game.id,
       game_state: newState,
       additional_updates: additionalUpdates || {},
@@ -130,7 +131,7 @@ export const useGame = (gameCode?: string) => {
   const voteRematch = useCallback(async (wantRematch: boolean) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('vote_rematch', {
+    const { data, error: actionError } = await invokeGameAction('vote_rematch', playerId, {
       game_id: game.id,
       want_rematch: wantRematch,
     });
@@ -143,7 +144,7 @@ export const useGame = (gameCode?: string) => {
   const startRematch = useCallback(async (): Promise<Game | null> => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('start_rematch', {
+    const { data, error: actionError } = await invokeGameAction('start_rematch', playerId, {
       game_id: game.id,
     });
 
@@ -154,7 +155,7 @@ export const useGame = (gameCode?: string) => {
 
   // Subscribe to realtime updates with reconnection + polling fallback
   useEffect(() => {
-    if (!gameCode || !playerId) return;
+    if (!gameCode) return;
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -229,12 +230,12 @@ export const useGame = (gameCode?: string) => {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (channel) supabase.removeChannel(channel);
     };
-  }, [gameCode, playerId, fetchGame]);
+  }, [gameCode, fetchGame]);
 
-  // Fetch game once auth is ready
+  // Fetch game on mount
   useEffect(() => {
-    if (gameCode && playerId) fetchGame(gameCode);
-  }, [gameCode, playerId, fetchGame]);
+    if (gameCode) fetchGame(gameCode);
+  }, [gameCode, fetchGame]);
 
-  return { game, loading, error, playerId: playerId || '', createGame, joinGame, updateGameState, fetchGame, voteRematch, startRematch };
+  return { game, loading, error, playerId, createGame, joinGame, updateGameState, fetchGame, voteRematch, startRematch };
 };
