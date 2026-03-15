@@ -36,9 +36,9 @@ export interface Game {
 
 // Helper to invoke the game-actions edge function
 // Auth is handled automatically via the Supabase client's JWT header
-const invokeGameAction = async (action: string, params: Record<string, unknown> = {}) => {
+const invokeGameAction = async (action: string, playerId: string, params: Record<string, unknown> = {}) => {
   const { data, error } = await supabase.functions.invoke('game-actions', {
-    body: { action, ...params },
+    body: { action, player_id: playerId, ...params },
   });
 
   if (error) {
