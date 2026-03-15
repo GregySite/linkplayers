@@ -155,7 +155,7 @@ export const useGame = (gameCode?: string) => {
 
   // Subscribe to realtime updates with reconnection + polling fallback
   useEffect(() => {
-    if (!gameCode || !playerId) return;
+    if (!gameCode) return;
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
