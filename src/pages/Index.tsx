@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot } from 'lucide-react';
 import { GameCard } from '@/components/GameCard';
 import { JoinGameModal } from '@/components/JoinGameModal';
-import { AuthButton } from '@/components/AuthButton';
 import { Button } from '@/components/ui/button';
 import { useGame, GameType } from '@/hooks/useGame';
 
