@@ -29,10 +29,28 @@ export function morpionAI(board: (string | null)[]): number {
       if (checkMorpionWinner(test) === 'X') return i;
     }
   }
-  // Center, corners, then any
-  const preferred = [4, 0, 2, 6, 8, 1, 3, 5, 7];
-  for (const i of preferred) {
-    if (!board[i]) return i;
+
+  // 30% chance of a random move (makes AI less predictable)
+  const empty = board.map((c, i) => c === null ? i : -1).filter(i => i !== -1);
+  if (Math.random() < 0.3 && empty.length > 0) {
+    return empty[Math.floor(Math.random() * empty.length)];
+  }
+
+  // Smart play: center, corners, edges — but shuffle within tiers
+  const shuffle = <T,>(arr: T[]) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const tiers = [[4], shuffle([0, 2, 6, 8]), shuffle([1, 3, 5, 7])];
+  for (const tier of tiers) {
+    for (const i of tier) {
+      if (!board[i]) return i;
+    }
   }
   return board.findIndex(c => c === null);
 }
