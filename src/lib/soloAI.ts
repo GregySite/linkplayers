@@ -29,10 +29,28 @@ export function morpionAI(board: (string | null)[]): number {
       if (checkMorpionWinner(test) === 'X') return i;
     }
   }
-  // Center, corners, then any
-  const preferred = [4, 0, 2, 6, 8, 1, 3, 5, 7];
-  for (const i of preferred) {
-    if (!board[i]) return i;
+
+  // 30% chance of a random move (makes AI less predictable)
+  const empty = board.map((c, i) => c === null ? i : -1).filter(i => i !== -1);
+  if (Math.random() < 0.3 && empty.length > 0) {
+    return empty[Math.floor(Math.random() * empty.length)];
+  }
+
+  // Smart play: center, corners, edges — but shuffle within tiers
+  const shuffle = <T,>(arr: T[]) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const tiers = [[4], shuffle([0, 2, 6, 8]), shuffle([1, 3, 5, 7])];
+  for (const tier of tiers) {
+    for (const i of tier) {
+      if (!board[i]) return i;
+    }
   }
   return board.findIndex(c => c === null);
 }
@@ -54,12 +72,17 @@ export function connect4AI(board: (string | null)[]): number {
     const test = [...board]; test[row * 7 + col] = 'red';
     if (checkConnect4Winner(test) === 'red') return col;
   }
-  // Prefer center columns
-  const preferred = [3, 2, 4, 1, 5, 0, 6];
-  for (const col of preferred) {
-    if (getDropRow(board, col) !== -1) return col;
+
+  // 25% chance of a random valid move
+  const validCols = [0,1,2,3,4,5,6].filter(c => getDropRow(board, c) !== -1);
+  if (Math.random() < 0.25 && validCols.length > 0) {
+    return validCols[Math.floor(Math.random() * validCols.length)];
   }
-  return 0;
+
+  // Prefer center columns with slight randomness
+  const weighted = [3, 3, 2, 4, 2, 4, 1, 5, 0, 6].filter(c => getDropRow(board, c) !== -1);
+  if (weighted.length > 0) return weighted[0];
+  return validCols[0] ?? 0;
 }
 
 // ==================== RPS AI ====================
@@ -74,18 +97,22 @@ export function rpsAI(): RPSChoice {
 export function othelloAI(board: OthelloCell[], color: OthelloCell): number {
   const moves = getValidOthelloMoves(board, color);
   if (moves.length === 0) return -1;
-  
-  // Prefer corners > edges > other
+
+  // 20% chance of random move
+  if (Math.random() < 0.2) {
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+
+  // Prefer corners > edges > best flip
   const corners = [0, 7, 56, 63];
+  const availCorners = corners.filter(c => moves.includes(c));
+  if (availCorners.length > 0) return availCorners[Math.floor(Math.random() * availCorners.length)];
+
   const edges = moves.filter(m => {
     const r = Math.floor(m / 8), c = m % 8;
     return r === 0 || r === 7 || c === 0 || c === 7;
   });
-
-  for (const c of corners) {
-    if (moves.includes(c)) return c;
-  }
-  if (edges.length > 0) return edges[0];
+  if (edges.length > 0) return edges[Math.floor(Math.random() * edges.length)];
 
   // Pick move that flips the most
   let bestMove = moves[0];
