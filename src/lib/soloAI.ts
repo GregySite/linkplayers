@@ -97,18 +97,22 @@ export function rpsAI(): RPSChoice {
 export function othelloAI(board: OthelloCell[], color: OthelloCell): number {
   const moves = getValidOthelloMoves(board, color);
   if (moves.length === 0) return -1;
-  
-  // Prefer corners > edges > other
+
+  // 20% chance of random move
+  if (Math.random() < 0.2) {
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+
+  // Prefer corners > edges > best flip
   const corners = [0, 7, 56, 63];
+  const availCorners = corners.filter(c => moves.includes(c));
+  if (availCorners.length > 0) return availCorners[Math.floor(Math.random() * availCorners.length)];
+
   const edges = moves.filter(m => {
     const r = Math.floor(m / 8), c = m % 8;
     return r === 0 || r === 7 || c === 0 || c === 7;
   });
-
-  for (const c of corners) {
-    if (moves.includes(c)) return c;
-  }
-  if (edges.length > 0) return edges[0];
+  if (edges.length > 0) return edges[Math.floor(Math.random() * edges.length)];
 
   // Pick move that flips the most
   let bestMove = moves[0];
