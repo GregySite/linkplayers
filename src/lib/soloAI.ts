@@ -72,12 +72,17 @@ export function connect4AI(board: (string | null)[]): number {
     const test = [...board]; test[row * 7 + col] = 'red';
     if (checkConnect4Winner(test) === 'red') return col;
   }
-  // Prefer center columns
-  const preferred = [3, 2, 4, 1, 5, 0, 6];
-  for (const col of preferred) {
-    if (getDropRow(board, col) !== -1) return col;
+
+  // 25% chance of a random valid move
+  const validCols = [0,1,2,3,4,5,6].filter(c => getDropRow(board, c) !== -1);
+  if (Math.random() < 0.25 && validCols.length > 0) {
+    return validCols[Math.floor(Math.random() * validCols.length)];
   }
-  return 0;
+
+  // Prefer center columns with slight randomness
+  const weighted = [3, 3, 2, 4, 2, 4, 1, 5, 0, 6].filter(c => getDropRow(board, c) !== -1);
+  if (weighted.length > 0) return weighted[0];
+  return validCols[0] ?? 0;
 }
 
 // ==================== RPS AI ====================
