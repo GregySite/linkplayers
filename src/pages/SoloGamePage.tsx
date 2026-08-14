@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Bot } from 'lucide-react';
-import { GameType } from '@/hooks/useGame';
+import { GameType, GameStatus } from '@/hooks/useGame';
 import { useSoloGame } from '@/hooks/useSoloGame';
 import { MorpionGame } from '@/components/games/MorpionGame';
 import { Connect4Game } from '@/components/games/Connect4Game';
@@ -11,6 +11,7 @@ import { OthelloGame } from '@/components/games/OthelloGame';
 import { PenduGame } from '@/components/games/PenduGame';
 import { DamesGame } from '@/components/games/DamesGame';
 import { MemoryGame } from '@/components/games/MemoryGame';
+import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +24,7 @@ import {
 import { isPenduWon, isPenduLost, normalizeWord, PENDU_MAX_ERRORS } from '@/lib/penduUtils';
 import { DamesMove, applyDamesMove, isDamesGameOver } from '@/lib/damesUtils';
 import { MemoryCard, isMemoryGameOver } from '@/lib/memoryUtils';
+import { ChkobbaState, playChkobbaCard, chkobbaAI } from '@/lib/chkobbaUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -32,7 +34,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba',
 };
 
 const SoloGamePage = () => {
@@ -344,6 +346,50 @@ const SoloGamePage = () => {
     });
   };
 
+  // ==================== CHKOBBA ====================
+  const handleChkobbaPlay = async (handIndex: number, selection: number[]) => {
+    const state = gameState as unknown as ChkobbaState;
+    const result = playChkobbaCard(state, 'player1', handIndex, selection);
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, {
+        status: 'finished' as GameStatus, winner: result.winner === 'player1' ? 'human' : 'cpu',
+      });
+      return;
+    }
+
+    if (result.nextPlayer === 'player1') {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'human' });
+      return;
+    }
+
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+
+    // Le CPU peut enchaîner plusieurs coups (si le joueur passe son tour n'arrive pas ici,
+    // mais après une nouvelle donne c'est possible que ce soit encore à lui)
+    const playCpu = (current: ChkobbaState) => {
+      scheduleCPU(async () => {
+        const move = chkobbaAI(current, 'player2');
+        if (!move) {
+          await updateGameState(current as unknown as Record<string, unknown>, { current_turn: 'human' });
+          return;
+        }
+        const cpuResult = playChkobbaCard(current, 'player2', move.handIndex, move.selection);
+        if (cpuResult.finished) {
+          await updateGameState(cpuResult.state as unknown as Record<string, unknown>, {
+            status: 'finished' as GameStatus, winner: cpuResult.winner === 'player1' ? 'human' : 'cpu',
+          });
+        } else if (cpuResult.nextPlayer === 'player2') {
+          await updateGameState(cpuResult.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+          playCpu(cpuResult.state);
+        } else {
+          await updateGameState(cpuResult.state as unknown as Record<string, unknown>, { current_turn: 'human' });
+        }
+      }, 1000);
+    };
+    playCpu(result.state);
+  };
+
   // ==================== GAME OVER ====================
   const isFinished = game.status === 'finished' || !!game.winner;
 
@@ -363,6 +409,7 @@ const SoloGamePage = () => {
       case 'othello': return <OthelloGame game={game} playerId={playerId} onMove={handleOthelloMove} />;
       case 'pendu': return <PenduGame game={game} playerId={playerId} onMove={handlePenduGuess} onSetWord={() => {}} />;
       case 'dames': return <DamesGame game={game} playerId={playerId} onMove={handleDamesMove} />;
+      case 'chkobba': return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
       case 'memory': return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       case 'battleship': return <BattleshipGame game={game} playerId={playerId} onPlaceShips={handleBattleshipPlaceShips} onShoot={handleBattleshipShoot} />;
       default: return <p className="text-muted-foreground">Jeu non supporté</p>;

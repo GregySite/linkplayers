@@ -11,7 +11,7 @@ function getLocalPlayerId(): string {
   return id;
 }
 
-export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory';
+export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
 
 export interface RematchState {

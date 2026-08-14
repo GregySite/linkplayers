@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -69,6 +69,35 @@ function createMemoryCards(): unknown[] {
   return cards
 }
 
+type ChkobbaSuit = 'denari' | 'coppe' | 'spade' | 'bastoni'
+interface ChkobbaCard { id: string; suit: ChkobbaSuit; value: number }
+
+function createChkobbaRound(round: number, matchScores: { player1: number; player2: number }) {
+  const suits: ChkobbaSuit[] = ['denari', 'coppe', 'spade', 'bastoni']
+  const deck: ChkobbaCard[] = []
+  for (const suit of suits) {
+    for (let value = 1; value <= 10; value++) deck.push({ id: `${suit}-${value}`, suit, value })
+  }
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]]
+  }
+  const table = deck.splice(0, 4)
+  const p1 = deck.splice(0, 3)
+  const p2 = deck.splice(0, 3)
+  return {
+    deck, table,
+    hands: { player1: p1, player2: p2 },
+    captured: { player1: [], player2: [] },
+    chkobbas: { player1: 0, player2: 0 },
+    lastCapturer: null,
+    matchScores,
+    round,
+    lastPlay: null,
+    roundSummary: null,
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -94,6 +123,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { word: null, guessedLetters: [], ...base }
     case 'dames':
       return { board: createDamesBoard(), currentColor: 'white', ...base }
+    case 'chkobba':
+      return { ...createChkobbaRound(1, { player1: 0, player2: 0 }), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -192,6 +223,27 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       }
       if (state.currentColor !== undefined && state.currentColor !== 'white' && state.currentColor !== 'black') {
         return 'Invalid dames currentColor'
+      }
+      break
+    }
+    case 'chkobba': {
+      if (!Array.isArray(state.deck) || !Array.isArray(state.table)) {
+        return 'Chkobba deck and table must be arrays'
+      }
+      if (state.deck.length + state.table.length > 40) {
+        return 'Invalid chkobba deck size'
+      }
+      const hands = state.hands as Record<string, unknown> | undefined
+      if (!hands || !Array.isArray(hands.player1) || !Array.isArray(hands.player2)) {
+        return 'Chkobba hands must be arrays'
+      }
+      const captured = state.captured as Record<string, unknown> | undefined
+      if (!captured || !Array.isArray(captured.player1) || !Array.isArray(captured.player2)) {
+        return 'Chkobba captured must be arrays'
+      }
+      const ms = state.matchScores as Record<string, unknown> | undefined
+      if (!ms || typeof ms.player1 !== 'number' || typeof ms.player2 !== 'number') {
+        return 'Invalid chkobba matchScores'
       }
       break
     }
