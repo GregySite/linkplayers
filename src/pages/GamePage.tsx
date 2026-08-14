@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Users } from 'lucide-react';
-import { useGame } from '@/hooks/useGame';
+import { useGame, GameStatus } from '@/hooks/useGame';
 import { CodeDisplay } from '@/components/CodeDisplay';
 import { MorpionGame } from '@/components/games/MorpionGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
@@ -12,6 +12,7 @@ import { OthelloGame } from '@/components/games/OthelloGame';
 import { PenduGame } from '@/components/games/PenduGame';
 import { DamesGame } from '@/components/games/DamesGame';
 import { MemoryGame } from '@/components/games/MemoryGame';
+import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ import {
 import { isPenduWon, isPenduLost, normalizeWord, getWrongGuessCount, PENDU_MAX_ERRORS } from '@/lib/penduUtils';
 import { DamesMove, applyDamesMove, isDamesGameOver, countDamesPieces } from '@/lib/damesUtils';
 import { MemoryCard, isMemoryGameOver, checkMemoryMatch } from '@/lib/memoryUtils';
+import { ChkobbaState, playChkobbaCard } from '@/lib/chkobbaUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -34,6 +36,7 @@ const GAME_TITLES: Record<string, string> = {
   pendu: 'Pendu',
   dames: 'Dames',
   memory: 'Memory',
+  chkobba: 'Chkobba',
 };
 
 const GamePage = () => {
@@ -302,6 +305,28 @@ const GamePage = () => {
     }
   };
 
+  // ==================== CHKOBBA HANDLER ====================
+
+  const handleChkobbaPlay = async (handIndex: number, selection: number[]) => {
+    const state = gameState as unknown as ChkobbaState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playChkobbaCard(state, me, handIndex, selection);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (result.finished) {
+      const winner = result.winner === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { status: 'finished' as GameStatus, winner }
+      );
+    } else {
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { current_turn: nextTurn }
+      );
+    }
+  };
+
   // ==================== GAME OVER CHECK ====================
 
   const isGameFinished = () => {
@@ -371,6 +396,8 @@ const GamePage = () => {
         return <PenduGame game={game} playerId={playerId} onMove={handlePenduGuess} onSetWord={handlePenduSetWord} />;
       case 'dames':
         return <DamesGame game={game} playerId={playerId} onMove={handleDamesMove} />;
+      case 'chkobba':
+        return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
       case 'memory':
         return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       default:

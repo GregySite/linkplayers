@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade } from 'lucide-react';
 import { GameCard } from '@/components/GameCard';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'othello', title: 'Othello', description: 'Encadre les pions adverses pour les capturer. Stratégie pure !', icon: <Disc className="w-6 h-6" /> },
   { type: 'pendu', title: 'Pendu', description: 'Choisis un mot et fais deviner ton adversaire lettre par lettre !', icon: <PenLine className="w-6 h-6" /> },
   { type: 'dames', title: 'Dames', description: 'Le jeu de dames classique sur plateau 10×10. Capture les pions adverses !', icon: <Crown className="w-6 h-6" /> },
+  { type: 'chkobba', title: 'Chkobba', description: 'Le jeu de cartes tunisien. Ramasse les cartes du tapis et vise 11 points !', icon: <Spade className="w-6 h-6" /> },
   { type: 'memory', title: 'Memory', description: 'Retourne les cartes et trouve les paires avant ton adversaire !', icon: <Layers className="w-6 h-6" /> },
 ];
 

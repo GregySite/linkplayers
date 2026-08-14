@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { Game, GameType, GameStatus } from '@/hooks/useGame';
+import { createChkobbaState } from '@/lib/chkobbaUtils';
 
 /**
  * Hook that mimics useGame but runs entirely client-side for Solo mode.
@@ -19,6 +20,7 @@ export const useSoloGame = (gameType: GameType) => {
         board[27] = 'white'; board[28] = 'black'; board[35] = 'black'; board[36] = 'white';
         return { board, currentColor: 'black' };
       }
+      case 'chkobba': return createChkobbaState() as unknown as Record<string, unknown>;
       case 'pendu': return { word: null, guessedLetters: [] };
       case 'dames': {
         const board: (string | null)[] = Array(100).fill(null);
