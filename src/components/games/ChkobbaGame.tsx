@@ -178,16 +178,32 @@ export const ChkobbaGame = ({ game, playerId, onPlay }: ChkobbaGameProps) => {
         </div>
       </div>
 
-      {/* Dernier coup */}
-      {lastPlay && !isFinished && (
-        <p className="text-center text-xs text-muted-foreground">
-          {lastPlay.player === me ? 'Tu as joué' : 'Adversaire a joué'}{' '}
-          <span className="text-foreground font-medium">
-            {lastPlay.card.value}{SUIT_SYMBOLS[lastPlay.card.suit]}
-          </span>{' '}
-          {lastPlay.captured.length > 0 ? `et ramassé ${lastPlay.captured.length} carte(s)` : 'et posé la carte'}
-          {lastPlay.chkobba && <span className="text-primary font-bold"> · CHKOBBA !</span>}
-        </p>
+      {/* Dernier coup — reste affiché jusqu'au coup suivant */}
+      {lastPlay && (
+        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+          <p className="text-center text-xs text-muted-foreground">
+            {lastPlay.player === me ? 'Ton dernier coup' : 'Dernier coup de l\'adversaire'}
+            {lastPlay.chkobba && <span className="text-primary font-bold"> · CHKOBBA !</span>}
+          </p>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[0.6rem] uppercase tracking-wider text-muted-foreground">Carte jouée</span>
+              <MiniCard card={lastPlay.card} />
+            </div>
+            {lastPlay.captured.length > 0 ? (
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[0.6rem] uppercase tracking-wider text-muted-foreground">
+                  Ramassées ({lastPlay.captured.length})
+                </span>
+                <div className="flex gap-1 flex-wrap justify-center">
+                  {lastPlay.captured.map(c => <MiniCard key={c.id} card={c} />)}
+                </div>
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground self-end pb-3">carte posée au tapis</span>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Ma main */}
