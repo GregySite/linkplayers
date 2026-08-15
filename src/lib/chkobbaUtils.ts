@@ -12,18 +12,21 @@ export interface ChkobbaCard {
 export const CHKOBBA_TARGET = 11;
 
 export const SUIT_LABELS: Record<ChkobbaSuit, string> = {
-  denari: 'Deniers',
-  coppe: 'Coupes',
-  spade: 'Épées',
-  bastoni: 'Bâtons',
+  denari: 'Carreau',
+  coppe: 'Cœur',
+  spade: 'Pique',
+  bastoni: 'Trèfle',
 };
 
 export const SUIT_SYMBOLS: Record<ChkobbaSuit, string> = {
-  denari: '🪙',
-  coppe: '🏆',
-  spade: '⚔️',
-  bastoni: '🌿',
+  denari: '♦',
+  coppe: '♥',
+  spade: '♠',
+  bastoni: '♣',
 };
+
+/** Rouge pour cœur et carreau, couleur de texte standard sinon. */
+export const isRedSuit = (suit: ChkobbaSuit) => suit === 'denari' || suit === 'coppe';
 
 export interface ChkobbaRoundSummary {
   points: { player1: number; player2: number };
