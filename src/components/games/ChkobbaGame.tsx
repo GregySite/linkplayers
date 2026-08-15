@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
 import {
-  ChkobbaCard, ChkobbaState, SUIT_SYMBOLS, CHKOBBA_TARGET,
+  ChkobbaCard, ChkobbaState, SUIT_SYMBOLS, CHKOBBA_TARGET, isRedSuit,
   findCaptureOptions, capturableTableIndices, isValidCapture,
 } from '@/lib/chkobbaUtils';
 
@@ -14,9 +14,17 @@ interface ChkobbaGameProps {
 }
 
 const CardFace = ({ card, size = 'md' }: { card: ChkobbaCard; size?: 'sm' | 'md' }) => (
-  <div className={`flex flex-col items-center justify-center leading-none ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+  <div className={`flex flex-col items-center justify-center leading-none ${size === 'sm' ? 'text-xs' : 'text-sm'} ${isRedSuit(card.suit) ? 'text-destructive' : ''}`}>
     <span className={size === 'sm' ? 'text-base font-bold' : 'text-xl font-bold'}>{card.value}</span>
     <span className={size === 'sm' ? 'text-xs' : 'text-base'}>{SUIT_SYMBOLS[card.suit]}</span>
+  </div>
+);
+
+/** Mini-carte utilisée pour l'historique du dernier coup. */
+const MiniCard = ({ card }: { card: ChkobbaCard }) => (
+  <div className={`w-8 h-11 rounded-md border border-border bg-card flex flex-col items-center justify-center leading-none ${isRedSuit(card.suit) ? 'text-destructive' : 'text-foreground'}`}>
+    <span className="text-sm font-bold">{card.value}</span>
+    <span className="text-xs">{SUIT_SYMBOLS[card.suit]}</span>
   </div>
 );
 
