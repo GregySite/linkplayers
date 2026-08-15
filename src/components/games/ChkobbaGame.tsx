@@ -229,7 +229,9 @@ export const ChkobbaGame = ({ game, playerId, onPlay }: ChkobbaGameProps) => {
                       : 'bg-card border-border text-muted-foreground'
                 }`}
               >
-                <div className="flex flex-col items-center leading-none">
+                <div className={`flex flex-col items-center leading-none ${
+                  selectedHand === index ? '' : isRedSuit(card.suit) ? 'text-destructive' : ''
+                }`}>
                   <span className="text-2xl font-bold">{card.value}</span>
                   <span className="text-xl">{SUIT_SYMBOLS[card.suit]}</span>
                 </div>
