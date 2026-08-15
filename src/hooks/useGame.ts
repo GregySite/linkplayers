@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 function getLocalPlayerId(): string {
@@ -61,8 +61,12 @@ export const useGame = (gameCode?: string) => {
   const playerId = getLocalPlayerId();
 
   // fetchGame reads directly (RLS now restricts to participants only)
+  // Les rafraîchissements (realtime / polling) sont silencieux : pas d'écran de chargement,
+  // ce qui évite les "sauts" de la page pendant la partie.
+  const hasLoadedRef = useRef(false);
   const fetchGame = useCallback(async (code: string) => {
-    setLoading(true);
+    const silent = hasLoadedRef.current;
+    if (!silent) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await supabase
       .from('games')
@@ -70,8 +74,15 @@ export const useGame = (gameCode?: string) => {
       .eq('code', code.toUpperCase())
       .maybeSingle();
 
-    if (fetchError) { setError('Erreur lors de la récupération de la partie'); setLoading(false); return null; }
-    if (!data) { setError('Partie non trouvée'); setLoading(false); return null; }
+    if (fetchError) {
+      if (!silent) { setError('Erreur lors de la récupération de la partie'); setLoading(false); }
+      return null;
+    }
+    if (!data) {
+      if (!silent) { setError('Partie non trouvée'); setLoading(false); }
+      return null;
+    }
+    hasLoadedRef.current = true;
     setGame(data as Game);
     setLoading(false);
     return data as Game;

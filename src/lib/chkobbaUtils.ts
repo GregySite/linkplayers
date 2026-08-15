@@ -12,18 +12,21 @@ export interface ChkobbaCard {
 export const CHKOBBA_TARGET = 11;
 
 export const SUIT_LABELS: Record<ChkobbaSuit, string> = {
-  denari: 'Deniers',
-  coppe: 'Coupes',
-  spade: 'Épées',
-  bastoni: 'Bâtons',
+  denari: 'Carreau',
+  coppe: 'Cœur',
+  spade: 'Pique',
+  bastoni: 'Trèfle',
 };
 
 export const SUIT_SYMBOLS: Record<ChkobbaSuit, string> = {
-  denari: '🪙',
-  coppe: '🏆',
-  spade: '⚔️',
-  bastoni: '🌿',
+  denari: '♦',
+  coppe: '♥',
+  spade: '♠',
+  bastoni: '♣',
 };
+
+/** Rouge pour cœur et carreau, couleur de texte standard sinon. */
+export const isRedSuit = (suit: ChkobbaSuit) => suit === 'denari' || suit === 'coppe';
 
 export interface ChkobbaRoundSummary {
   points: { player1: number; player2: number };
@@ -173,6 +176,8 @@ export function computeRoundSummary(state: ChkobbaState): ChkobbaRoundSummary {
   const den2 = p2.filter(c => c.suit === 'denari').length;
   const sev1 = p1.filter(c => c.value === 7).length;
   const sev2 = p2.filter(c => c.value === 7).length;
+  const six1 = p1.filter(c => c.value === 6).length;
+  const six2 = p2.filter(c => c.value === 6).length;
   const karta1 = p1.some(isSevenOfDenari);
 
   const points = { player1: state.chkobbas.player1, player2: state.chkobbas.player2 };
@@ -185,17 +190,25 @@ export function computeRoundSummary(state: ChkobbaState): ChkobbaRoundSummary {
     details.push({ label, winner, p1: fmt(v1), p2: fmt(v2) });
   };
 
-  add('Karta (cartes)', cards1, cards2);
-  add('Dineri (deniers)', den1, den2);
-  add('Barmila (sept)', sev1, sev2);
+  // 1. Barmila : le plus de 7 (égalité départagée par le nombre de 6)
+  if (sev1 === sev2) {
+    add('Barmila (7, départage aux 6)', six1, six2, v => `${sev1} · ${v}×6`);
+  } else {
+    add('Barmila (nombre de 7)', sev1, sev2);
+  }
 
+  // 2. Le 7 de carreau
   points[karta1 ? 'player1' : 'player2'] += 1;
   details.push({
-    label: 'Sept de deniers',
+    label: 'Sept de carreau ♦',
     winner: karta1 ? 'player1' : 'player2',
     p1: karta1 ? '✓' : '—',
     p2: karta1 ? '—' : '✓',
   });
+
+  // 3. Le plus de cartes, 4. le plus de carreaux
+  add('Karta (nombre de cartes)', cards1, cards2);
+  add('Dineri (carreaux ♦)', den1, den2);
 
   details.push({
     label: 'Chkobbas',

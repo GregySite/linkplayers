@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
 import {
-  ChkobbaCard, ChkobbaState, SUIT_SYMBOLS, CHKOBBA_TARGET,
+  ChkobbaCard, ChkobbaState, SUIT_SYMBOLS, CHKOBBA_TARGET, isRedSuit,
   findCaptureOptions, capturableTableIndices, isValidCapture,
 } from '@/lib/chkobbaUtils';
 
@@ -14,9 +14,17 @@ interface ChkobbaGameProps {
 }
 
 const CardFace = ({ card, size = 'md' }: { card: ChkobbaCard; size?: 'sm' | 'md' }) => (
-  <div className={`flex flex-col items-center justify-center leading-none ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+  <div className={`flex flex-col items-center justify-center leading-none ${size === 'sm' ? 'text-xs' : 'text-sm'} ${isRedSuit(card.suit) ? 'text-destructive' : ''}`}>
     <span className={size === 'sm' ? 'text-base font-bold' : 'text-xl font-bold'}>{card.value}</span>
     <span className={size === 'sm' ? 'text-xs' : 'text-base'}>{SUIT_SYMBOLS[card.suit]}</span>
+  </div>
+);
+
+/** Mini-carte utilisée pour l'historique du dernier coup. */
+const MiniCard = ({ card }: { card: ChkobbaCard }) => (
+  <div className={`w-8 h-11 rounded-md border border-border bg-card flex flex-col items-center justify-center leading-none ${isRedSuit(card.suit) ? 'text-destructive' : 'text-foreground'}`}>
+    <span className="text-sm font-bold">{card.value}</span>
+    <span className="text-xs">{SUIT_SYMBOLS[card.suit]}</span>
   </div>
 );
 
@@ -170,16 +178,32 @@ export const ChkobbaGame = ({ game, playerId, onPlay }: ChkobbaGameProps) => {
         </div>
       </div>
 
-      {/* Dernier coup */}
-      {lastPlay && !isFinished && (
-        <p className="text-center text-xs text-muted-foreground">
-          {lastPlay.player === me ? 'Tu as joué' : 'Adversaire a joué'}{' '}
-          <span className="text-foreground font-medium">
-            {lastPlay.card.value}{SUIT_SYMBOLS[lastPlay.card.suit]}
-          </span>{' '}
-          {lastPlay.captured.length > 0 ? `et ramassé ${lastPlay.captured.length} carte(s)` : 'et posé la carte'}
-          {lastPlay.chkobba && <span className="text-primary font-bold"> · CHKOBBA !</span>}
-        </p>
+      {/* Dernier coup — reste affiché jusqu'au coup suivant */}
+      {lastPlay && (
+        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+          <p className="text-center text-xs text-muted-foreground">
+            {lastPlay.player === me ? 'Ton dernier coup' : 'Dernier coup de l\'adversaire'}
+            {lastPlay.chkobba && <span className="text-primary font-bold"> · CHKOBBA !</span>}
+          </p>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[0.6rem] uppercase tracking-wider text-muted-foreground">Carte jouée</span>
+              <MiniCard card={lastPlay.card} />
+            </div>
+            {lastPlay.captured.length > 0 ? (
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[0.6rem] uppercase tracking-wider text-muted-foreground">
+                  Ramassées ({lastPlay.captured.length})
+                </span>
+                <div className="flex gap-1 flex-wrap justify-center">
+                  {lastPlay.captured.map(c => <MiniCard key={c.id} card={c} />)}
+                </div>
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground self-end pb-3">carte posée au tapis</span>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Ma main */}
@@ -205,7 +229,9 @@ export const ChkobbaGame = ({ game, playerId, onPlay }: ChkobbaGameProps) => {
                       : 'bg-card border-border text-muted-foreground'
                 }`}
               >
-                <div className="flex flex-col items-center leading-none">
+                <div className={`flex flex-col items-center leading-none ${
+                  selectedHand === index ? '' : isRedSuit(card.suit) ? 'text-destructive' : ''
+                }`}>
                   <span className="text-2xl font-bold">{card.value}</span>
                   <span className="text-xl">{SUIT_SYMBOLS[card.suit]}</span>
                 </div>
