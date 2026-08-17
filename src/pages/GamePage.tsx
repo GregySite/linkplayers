@@ -13,6 +13,7 @@ import { PenduGame } from '@/components/games/PenduGame';
 import { DamesGame } from '@/components/games/DamesGame';
 import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
+import { YanivGame } from '@/components/games/YanivGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ import { isPenduWon, isPenduLost, normalizeWord, getWrongGuessCount, PENDU_MAX_E
 import { DamesMove, applyDamesMove, isDamesGameOver, countDamesPieces } from '@/lib/damesUtils';
 import { MemoryCard, isMemoryGameOver, checkMemoryMatch } from '@/lib/memoryUtils';
 import { ChkobbaState, playChkobbaCard } from '@/lib/chkobbaUtils';
+import { YanivState, playYanivMove, callYaniv } from '@/lib/yanivUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -37,6 +39,7 @@ const GAME_TITLES: Record<string, string> = {
   dames: 'Dames',
   memory: 'Memory',
   chkobba: 'Chkobba',
+  yaniv: 'Yaniv',
 };
 
 const GamePage = () => {
@@ -327,6 +330,43 @@ const GamePage = () => {
     }
   };
 
+  // ==================== YANIV HANDLERS ====================
+
+  const handleYanivPlay = async (
+    discardIndices: number[],
+    draw: { from: 'deck' } | { from: 'discard'; cardId: string },
+  ) => {
+    const state = gameState as unknown as YanivState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playYanivMove(state, me, discardIndices, draw);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    await updateGameState(
+      result.state as unknown as Record<string, unknown>,
+      { current_turn: nextTurn }
+    );
+  };
+
+  const handleYanivCall = async () => {
+    const state = gameState as unknown as YanivState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = callYaniv(state, me);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (result.finished) {
+      const winner = result.winner === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { status: 'finished' as GameStatus, winner }
+      );
+    } else {
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { current_turn: nextTurn }
+      );
+    }
+  };
+
   // ==================== GAME OVER CHECK ====================
 
   const isGameFinished = () => {
@@ -398,6 +438,8 @@ const GamePage = () => {
         return <DamesGame game={game} playerId={playerId} onMove={handleDamesMove} />;
       case 'chkobba':
         return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
+      case 'yaniv':
+        return <YanivGame game={game} playerId={playerId} onPlay={handleYanivPlay} onYaniv={handleYanivCall} />;
       case 'memory':
         return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       default:

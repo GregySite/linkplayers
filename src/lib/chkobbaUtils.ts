@@ -279,7 +279,7 @@ export function playChkobbaCard(
 
   state.lastPlay = { player, card, captured: capturedCards, chkobba };
 
-  let nextPlayer = opponentOf(player);
+  const nextPlayer = opponentOf(player);
 
   if (handsEmpty) {
     if (state.deck.length >= 6) {

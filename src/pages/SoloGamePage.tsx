@@ -12,6 +12,7 @@ import { PenduGame } from '@/components/games/PenduGame';
 import { DamesGame } from '@/components/games/DamesGame';
 import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
+import { YanivGame } from '@/components/games/YanivGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +26,7 @@ import { isPenduWon, isPenduLost, normalizeWord, PENDU_MAX_ERRORS } from '@/lib/
 import { DamesMove, applyDamesMove, isDamesGameOver } from '@/lib/damesUtils';
 import { MemoryCard, isMemoryGameOver } from '@/lib/memoryUtils';
 import { ChkobbaState, playChkobbaCard, chkobbaAI } from '@/lib/chkobbaUtils';
+import { YanivState, playYanivMove, callYaniv, yanivAI } from '@/lib/yanivUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -34,7 +36,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv',
 };
 
 const SoloGamePage = () => {
@@ -390,6 +392,64 @@ const SoloGamePage = () => {
     playCpu(result.state);
   };
 
+  // ==================== YANIV ====================
+  const playYanivCpuTurn = (current: YanivState) => {
+    scheduleCPU(async () => {
+      const move = yanivAI(current, 'player2');
+
+      if (move.type === 'yaniv') {
+        const result = callYaniv(current, 'player2');
+        if (result.finished) {
+          await updateGameState(result.state as unknown as Record<string, unknown>, {
+            status: 'finished' as GameStatus, winner: result.winner === 'player1' ? 'human' : 'cpu',
+          });
+          return;
+        }
+        const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+        await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+        if (nextTurn === 'cpu') playYanivCpuTurn(result.state);
+        return;
+      }
+
+      const result = playYanivMove(current, 'player2', move.discardIndices!, move.draw!);
+      const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playYanivCpuTurn(result.state);
+    }, 1000);
+  };
+
+  const handleYanivPlay = async (
+    discardIndices: number[],
+    draw: { from: 'deck' } | { from: 'discard'; cardId: string },
+  ) => {
+    const state = gameState as unknown as YanivState;
+    const result = playYanivMove(state, 'player1', discardIndices, draw);
+
+    if (result.nextPlayer === 'player1') {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'human' });
+      return;
+    }
+
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+    playYanivCpuTurn(result.state);
+  };
+
+  const handleYanivCall = async () => {
+    const state = gameState as unknown as YanivState;
+    const result = callYaniv(state, 'player1');
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, {
+        status: 'finished' as GameStatus, winner: result.winner === 'player1' ? 'human' : 'cpu',
+      });
+      return;
+    }
+
+    const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    if (nextTurn === 'cpu') playYanivCpuTurn(result.state);
+  };
+
   // ==================== GAME OVER ====================
   const isFinished = game.status === 'finished' || !!game.winner;
 
@@ -410,6 +470,7 @@ const SoloGamePage = () => {
       case 'pendu': return <PenduGame game={game} playerId={playerId} onMove={handlePenduGuess} onSetWord={() => {}} />;
       case 'dames': return <DamesGame game={game} playerId={playerId} onMove={handleDamesMove} />;
       case 'chkobba': return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
+      case 'yaniv': return <YanivGame game={game} playerId={playerId} onPlay={handleYanivPlay} onYaniv={handleYanivCall} />;
       case 'memory': return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       case 'battleship': return <BattleshipGame game={game} playerId={playerId} onPlaceShips={handleBattleshipPlaceShips} onShoot={handleBattleshipShoot} />;
       default: return <p className="text-muted-foreground">Jeu non supporté</p>;

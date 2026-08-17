@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -98,6 +98,36 @@ function createChkobbaRound(round: number, matchScores: { player1: number; playe
   }
 }
 
+type YanivSuit = 'spades' | 'hearts' | 'diamonds' | 'clubs' | 'joker'
+interface YanivCard { id: string; suit: YanivSuit; rank: number }
+
+function createYanivRound(round: number, scores: { player1: number; player2: number }) {
+  const suits: YanivSuit[] = ['spades', 'hearts', 'diamonds', 'clubs']
+  const deck: YanivCard[] = []
+  for (const suit of suits) {
+    for (let rank = 1; rank <= 13; rank++) deck.push({ id: `${suit}-${rank}`, suit, rank })
+  }
+  deck.push({ id: 'joker-1', suit: 'joker', rank: 0 })
+  deck.push({ id: 'joker-2', suit: 'joker', rank: 0 })
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]]
+  }
+  const p1 = deck.splice(0, 5)
+  const p2 = deck.splice(0, 5)
+  const first = deck.splice(0, 1)
+  return {
+    deck,
+    discardPile: first,
+    pickable: first,
+    hands: { player1: p1, player2: p2 },
+    scores,
+    round,
+    lastPlay: null,
+    roundSummary: null,
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -125,6 +155,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { board: createDamesBoard(), currentColor: 'white', ...base }
     case 'chkobba':
       return { ...createChkobbaRound(1, { player1: 0, player2: 0 }), ...base }
+    case 'yaniv':
+      return { ...createYanivRound(1, { player1: 0, player2: 0 }), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -253,6 +285,23 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       }
       if (state.flippedIndices !== undefined && !Array.isArray(state.flippedIndices)) {
         return 'flippedIndices must be an array'
+      }
+      break
+    }
+    case 'yaniv': {
+      if (!Array.isArray(state.deck) || !Array.isArray(state.discardPile) || !Array.isArray(state.pickable)) {
+        return 'Yaniv deck, discardPile and pickable must be arrays'
+      }
+      if (state.deck.length + state.discardPile.length > 54) {
+        return 'Invalid yaniv deck size'
+      }
+      const hands = state.hands as Record<string, unknown> | undefined
+      if (!hands || !Array.isArray(hands.player1) || !Array.isArray(hands.player2)) {
+        return 'Yaniv hands must be arrays'
+      }
+      const sc = state.scores as Record<string, unknown> | undefined
+      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
+        return 'Invalid yaniv scores'
       }
       break
     }

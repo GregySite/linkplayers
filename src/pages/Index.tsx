@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond } from 'lucide-react';
 import { GameCard } from '@/components/GameCard';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'dames', title: 'Dames', description: 'Le jeu de dames classique sur plateau 10×10. Capture les pions adverses !', icon: <Crown className="w-6 h-6" /> },
   { type: 'chkobba', title: 'Chkobba', description: 'Le jeu de cartes tunisien. Ramasse les cartes du tapis et vise 11 points !', icon: <Spade className="w-6 h-6" /> },
   { type: 'memory', title: 'Memory', description: 'Retourne les cartes et trouve les paires avant ton adversaire !', icon: <Layers className="w-6 h-6" /> },
+  { type: 'yaniv', title: 'Yaniv', description: 'Défausse tes cartes, annonce Yaniv à 7 points ou moins... mais gare à l\'Assaf !', icon: <Diamond className="w-6 h-6" /> },
 ];
 
 const Index = () => {

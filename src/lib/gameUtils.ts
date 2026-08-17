@@ -236,10 +236,6 @@ export const getValidOthelloMoves = (board: OthelloCell[], currentColor: Othello
     const col = i % 8;
 
     for (const dir of OTHELLO_DIRECTIONS) {
-      let r = row + Math.floor(dir / 8 + (dir > 0 ? 0.5 : -0.5));
-      let c = col + (dir % 8 || (dir > 0 ? 0 : 0));
-      
-      // Simpler approach: use explicit dr, dc
       const dr = dir === -9 || dir === -8 || dir === -7 ? -1 : dir === 7 || dir === 8 || dir === 9 ? 1 : 0;
       const dc = dir === -9 || dir === -1 || dir === 7 ? -1 : dir === -7 || dir === 1 || dir === 9 ? 1 : 0;
       
