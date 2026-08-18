@@ -7,7 +7,7 @@ import {
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
 import {
-  FootballState, ROWS, COLS, GOAL_ROWS, legalMoveCells, bfsPathTo, getCarrier,
+  FootballState, ROWS, COLS, GOAL_ROWS, legalMoveCells, bfsPathTo, getCarrier, isGoalkeeper,
 } from '@/lib/footballUtils';
 
 interface FootballGameProps {
@@ -105,8 +105,8 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
         ) : isMyTurn ? (
           <p className="text-primary font-medium">
             {iHaveBall
-              ? (selectedToken ? 'Choisis une case surlignée, ou passe/tire ci-dessous' : 'Déplace un joueur, ou passe/tire directement')
-              : (selectedToken ? 'Choisis une case surlignée pour déplacer ce joueur' : 'Déplace un de tes joueurs vers le ballon')}
+              ? (selectedToken ? 'Choisis une case surlignée, ou passe/tire ci-dessous' : 'Déplace un joueur, ou passe/tire directement (tir possible à 3 cases ou moins de la cage)')
+              : (selectedToken ? 'Choisis une case surlignée pour déplacer ce joueur' : 'Déplace tes joueurs, puis termine ton tour quand tu as fini')}
           </p>
         ) : (
           <p className="text-muted-foreground">Au tour de l'adversaire...</p>
@@ -135,7 +135,7 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
                   {occupant && (
                     <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 ${
                       occupant.owner === 'player1' ? 'bg-primary border-primary/70' : 'bg-foreground border-foreground/70'
-                    }`} />
+                    } ${isGoalkeeper(occupant.id) ? 'ring-2 ring-yellow-400' : ''}`} />
                   )}
                   {hasBall && (
                     <div className="absolute w-2 h-2 rounded-full bg-white border border-black/40" style={{ top: '15%', right: '15%' }} />
@@ -146,6 +146,9 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
           </div>
         ))}
       </div>
+      <p className="text-center text-[0.65rem] text-muted-foreground">
+        <span className="inline-block w-2.5 h-2.5 rounded-full ring-2 ring-yellow-400 align-middle mr-1" /> = gardien (reste dans sa cage)
+      </p>
 
       {/* Actions */}
       {isMyTurn && iHaveBall && !isFinished && (
@@ -186,8 +189,10 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
       )}
 
       {isMyTurn && !isFinished && (
-        <div className="flex justify-center">
-          <Button variant="ghost" size="sm" onClick={onEndTurn}>Terminer le tour</Button>
+        <div className="flex justify-center pt-1">
+          <Button variant="secondary" onClick={onEndTurn} className="font-medium">
+            ✓ Terminer le tour
+          </Button>
         </div>
       )}
     </motion.div>

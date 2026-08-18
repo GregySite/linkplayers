@@ -208,6 +208,7 @@ function createBackgammonState() {
 
 function createFootballState() {
   const HOME_COL: Record<string, number> = { player1: 2, player2: 6 }
+  const OWN_GOAL_COL: Record<string, number> = { player1: 0, player2: 8 }
   const kickoffTeam = 'player1'
   const other = 'player2'
   return {
@@ -216,11 +217,13 @@ function createFootballState() {
         { id: `${kickoffTeam}-0`, row: 2, col: 4 },
         { id: `${kickoffTeam}-1`, row: 0, col: HOME_COL[kickoffTeam] },
         { id: `${kickoffTeam}-2`, row: 4, col: HOME_COL[kickoffTeam] },
+        { id: `${kickoffTeam}-gk`, row: 2, col: OWN_GOAL_COL[kickoffTeam] },
       ],
       [other]: [
         { id: `${other}-0`, row: 2, col: HOME_COL[other] },
         { id: `${other}-1`, row: 0, col: HOME_COL[other] },
         { id: `${other}-2`, row: 4, col: HOME_COL[other] },
+        { id: `${other}-gk`, row: 2, col: OWN_GOAL_COL[other] },
       ],
     },
     ball: { row: 2, col: 4 },

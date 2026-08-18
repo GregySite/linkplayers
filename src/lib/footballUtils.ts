@@ -22,26 +22,33 @@ export const MAX_MOVE_PER_TOKEN = 2;
 export const TARGET_GOALS = 3;
 export const MAX_TURNS = 60;
 
+export const SHOOT_RANGE = 3; // colonnes max entre le porteur et la cage adverse pour pouvoir tirer
+
 const HOME_COL: Record<FootPlayer, number> = { player1: 2, player2: 6 };
 const opponentOf = (player: FootPlayer): FootPlayer => (player === 'player1' ? 'player2' : 'player1');
 
 const createKickoff = (kickoffTeam: FootPlayer): { players: Record<FootPlayer, FootToken[]>; ball: BallPos } => {
   const other = opponentOf(kickoffTeam);
+  const ownGoalCol: Record<FootPlayer, number> = { player1: 0, player2: COLS - 1 };
   const kickoffPlayers: FootToken[] = [
     { id: `${kickoffTeam}-0`, row: 2, col: 4 },
     { id: `${kickoffTeam}-1`, row: 0, col: HOME_COL[kickoffTeam] },
     { id: `${kickoffTeam}-2`, row: 4, col: HOME_COL[kickoffTeam] },
+    { id: `${kickoffTeam}-gk`, row: 2, col: ownGoalCol[kickoffTeam] },
   ];
   const otherPlayers: FootToken[] = [
     { id: `${other}-0`, row: 2, col: HOME_COL[other] },
     { id: `${other}-1`, row: 0, col: HOME_COL[other] },
     { id: `${other}-2`, row: 4, col: HOME_COL[other] },
+    { id: `${other}-gk`, row: 2, col: ownGoalCol[other] },
   ];
   return {
     players: { [kickoffTeam]: kickoffPlayers, [other]: otherPlayers } as Record<FootPlayer, FootToken[]>,
     ball: { row: 2, col: 4 },
   };
 };
+
+export const isGoalkeeper = (tokenId: string): boolean => tokenId.endsWith('-gk');
 
 export const createFootballState = (): FootballState => ({
   ...createKickoff('player1'),
@@ -145,6 +152,7 @@ export type ShootResult =
 export const playShoot = (state: FootballState, player: FootPlayer, dr: number, dc: number): ShootResult => {
   if (getCarrier(state) !== player) return { ok: false, state };
   const opponentGoalCol = player === 'player1' ? COLS - 1 : 0;
+  if (Math.abs(state.ball.col - opponentGoalCol) > SHOOT_RANGE) return { ok: false, state }; // trop loin pour tirer
   const trace = traceLine(state, state.ball.row, state.ball.col, dr, dc);
 
   if (trace.hitPlayer && trace.hitPlayer !== player) {
@@ -243,21 +251,42 @@ export const footballAI = (state: FootballState, player: FootPlayer): FootballAI
   const carrier = getCarrier(state);
   const moves: FootballAIPlan['moves'] = [];
   const opponentGoalCol = player === 'player1' ? COLS - 1 : 0;
+  const ownGoalCol = player === 'player1' ? 0 : COLS - 1;
+
+  // Repositionne le gardien verticalement pour suivre le ballon, sans quitter sa colonne
+  const keeper = state.players[player].find(t => isGoalkeeper(t.id));
+  if (keeper && keeper.col === ownGoalCol) {
+    const targetRow = Math.min(Math.max(state.ball.row, GOAL_ROWS[0]), GOAL_ROWS[GOAL_ROWS.length - 1]);
+    if (targetRow !== keeper.row) {
+      const dir = targetRow > keeper.row ? 1 : -1;
+      const steps = Math.min(Math.abs(targetRow - keeper.row), MAX_MOVE_PER_TOKEN);
+      const path: { row: number; col: number }[] = [];
+      let r = keeper.row;
+      let blocked = false;
+      for (let i = 0; i < steps; i++) {
+        r += dir;
+        if (getTokenOwnerAt(state.players, r, ownGoalCol)) { blocked = true; break; }
+        path.push({ row: r, col: ownGoalCol });
+      }
+      if (!blocked && path.length > 0) moves.push({ tokenId: keeper.id, path });
+    }
+  }
 
   if (carrier === player) {
     const carrierToken = state.players[player].find(t => t.row === state.ball.row && t.col === state.ball.col)!;
 
-    // Tir si aligné avec la cage adverse et couloir dégagé
-    if (GOAL_ROWS.includes(carrierToken.row)) {
+    // Tir si à portée, aligné avec la cage adverse et couloir dégagé
+    const inRange = Math.abs(carrierToken.col - opponentGoalCol) <= SHOOT_RANGE;
+    if (inRange && GOAL_ROWS.includes(carrierToken.row)) {
       const dc = player === 'player1' ? 1 : -1;
       const trace = traceLine(state, carrierToken.row, carrierToken.col, 0, dc);
       if (!trace.hitPlayer && trace.col === opponentGoalCol) {
-        return { moves: [], ballAction: { type: 'shoot', dr: 0, dc } };
+        return { moves, ballAction: { type: 'shoot', dr: 0, dc } };
       }
     }
 
     // Sinon, tente une passe vers le coéquipier le plus avancé, dégagée
-    const teammates = state.players[player].filter(t => t.id !== carrierToken.id);
+    const teammates = state.players[player].filter(t => t.id !== carrierToken.id && !isGoalkeeper(t.id));
     let bestPass: { dr: number; dc: number; advance: number } | null = null;
     for (const mate of teammates) {
       const dr0 = mate.row - carrierToken.row;
@@ -274,7 +303,7 @@ export const footballAI = (state: FootballState, player: FootPlayer): FootballAI
         if (advance > 0 && (!bestPass || advance > bestPass.advance)) bestPass = { dr, dc, advance };
       }
     }
-    if (bestPass) return { moves: [], ballAction: { type: 'pass', dr: bestPass.dr, dc: bestPass.dc } };
+    if (bestPass) return { moves, ballAction: { type: 'pass', dr: bestPass.dr, dc: bestPass.dc } };
 
     // Sinon, dribble vers la case atteignable la plus proche de la cage adverse
     const targetRow = GOAL_ROWS.includes(carrierToken.row) ? carrierToken.row : GOAL_ROWS[1];
@@ -286,16 +315,18 @@ export const footballAI = (state: FootballState, player: FootPlayer): FootballAI
     return { moves, ballAction: null };
   }
 
-  // Pas de ballon : rapproche le joueur le plus proche du ballon
-  const myTokens = state.players[player];
-  const sorted = [...myTokens].sort((a, b) =>
+  // Pas de ballon : rapproche le joueur de champ le plus proche (hors gardien)
+  const fieldTokens = state.players[player].filter(t => !isGoalkeeper(t.id));
+  const sorted = [...fieldTokens].sort((a, b) =>
     (Math.abs(a.row - state.ball.row) + Math.abs(a.col - state.ball.col)) -
     (Math.abs(b.row - state.ball.row) + Math.abs(b.col - state.ball.col)));
   const closest = sorted[0];
-  const dest = bestReachableCellToward(state, player, closest.id, state.ball);
-  if (dest) {
-    const path = bfsPathTo(state, closest, dest, MAX_MOVE_PER_TOKEN);
-    if (path && path.length > 0) moves.push({ tokenId: closest.id, path });
+  if (closest) {
+    const dest = bestReachableCellToward(state, player, closest.id, state.ball);
+    if (dest) {
+      const path = bfsPathTo(state, closest, dest, MAX_MOVE_PER_TOKEN);
+      if (path && path.length > 0) moves.push({ tokenId: closest.id, path });
+    }
   }
 
   void opponent;
