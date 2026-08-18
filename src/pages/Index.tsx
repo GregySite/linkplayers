@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5 } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5, Goal } from 'lucide-react';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
@@ -23,6 +23,7 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'awale', title: 'Awalé', description: 'Jeu de plateau africain traditionnel. Sème tes graines et capture celles de l\'adversaire !', icon: <CircleDot className="w-6 h-6" /> },
   { type: 'belote', title: 'Belote', description: 'Le classique des cartes françaises. Atout, plis, belote-rebelote et dix de der !', icon: <Heart className="w-6 h-6" /> },
   { type: 'backgammon', title: 'Backgammon', description: 'Le grand classique du plateau et des dés. Rentre tes pions à la maison avant l\'adversaire !', icon: <Dice5 className="w-6 h-6" /> },
+  { type: 'football', title: 'Foot Tactique', description: 'Déplace tes joueurs, fais des passes et tire au but ! Premier à 3 buts gagne.', icon: <Goal className="w-6 h-6" /> },
 ];
 
 const Index = () => {

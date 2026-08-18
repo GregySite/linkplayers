@@ -133,4 +133,13 @@ export const GAME_RULES: Record<GameType, GameRules> = {
     ],
     winCondition: 'Premier à sortir ses 15 pions du plateau gagne.',
   },
+  football: {
+    objective: 'Marque plus de buts que l\'adversaire en déplaçant tes joueurs et en manœuvrant le ballon.',
+    rules: [
+      'Chacun ton tour, déplace tes joueurs de 2 cases maximum chacun (le porteur du ballon l\'emmène avec lui).',
+      'Si tu as le ballon, tu peux ensuite passer ou tirer en ligne droite (8 directions) au lieu de bouger.',
+      'Un adversaire sur la trajectoire intercepte la passe ou bloque le tir. Un tir qui atteint la cage sans obstacle marque un but.',
+    ],
+    winCondition: 'Premier à 3 buts gagne (sinon, le plus de buts après 30 tours chacun).',
+  },
 };

@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon', 'football']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -206,6 +206,31 @@ function createBackgammonState() {
   }
 }
 
+function createFootballState() {
+  const HOME_COL: Record<string, number> = { player1: 2, player2: 6 }
+  const kickoffTeam = 'player1'
+  const other = 'player2'
+  return {
+    players: {
+      [kickoffTeam]: [
+        { id: `${kickoffTeam}-0`, row: 2, col: 4 },
+        { id: `${kickoffTeam}-1`, row: 0, col: HOME_COL[kickoffTeam] },
+        { id: `${kickoffTeam}-2`, row: 4, col: HOME_COL[kickoffTeam] },
+      ],
+      [other]: [
+        { id: `${other}-0`, row: 2, col: HOME_COL[other] },
+        { id: `${other}-1`, row: 0, col: HOME_COL[other] },
+        { id: `${other}-2`, row: 4, col: HOME_COL[other] },
+      ],
+    },
+    ball: { row: 2, col: 4 },
+    scores: { player1: 0, player2: 0 },
+    turnsPlayed: 0,
+    movedThisTurn: {},
+    lastAction: null,
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -243,6 +268,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { ...createBeloteRound(1, { player1: 0, player2: 0 }), ...base }
     case 'backgammon':
       return { ...createBackgammonState(), ...base }
+    case 'football':
+      return { ...createFootballState(), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -440,6 +467,21 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       }
       if (!off || typeof off.player1 !== 'number' || typeof off.player2 !== 'number') {
         return 'Invalid backgammon off'
+      }
+      break
+    }
+    case 'football': {
+      const players = state.players as Record<string, unknown> | undefined
+      if (!players || !Array.isArray(players.player1) || !Array.isArray(players.player2)) {
+        return 'Football players must be arrays'
+      }
+      const ball = state.ball as Record<string, unknown> | undefined
+      if (!ball || typeof ball.row !== 'number' || typeof ball.col !== 'number') {
+        return 'Invalid football ball position'
+      }
+      const sc = state.scores as Record<string, unknown> | undefined
+      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
+        return 'Invalid football scores'
       }
       break
     }

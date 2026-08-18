@@ -18,6 +18,7 @@ import { RamiGame } from '@/components/games/RamiGame';
 import { AwaleGame } from '@/components/games/AwaleGame';
 import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
+import { FootballGame } from '@/components/games/FootballGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -40,6 +41,10 @@ import {
 import { AwaleState, playAwaleMove } from '@/lib/awaleUtils';
 import { BeloteState, playBeloteCard } from '@/lib/beloteUtils';
 import { BackgammonState, rollDice as bgRollDice, playBackgammonMove, skipIfNoMoves as bgSkipIfNoMoves } from '@/lib/backgammonUtils';
+import {
+  FootballState, moveToken as fbMoveToken, playPass as fbPlayPass, playShoot as fbPlayShoot,
+  kickoffAfterGoal, endTurn as fbEndTurn, TARGET_GOALS, MAX_TURNS,
+} from '@/lib/footballUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -56,6 +61,7 @@ const GAME_TITLES: Record<string, string> = {
   awale: 'Awalé',
   belote: 'Belote',
   backgammon: 'Backgammon',
+  football: 'Foot Tactique',
 };
 
 const GamePage = () => {
@@ -526,6 +532,66 @@ const GamePage = () => {
     }
   };
 
+  // ==================== FOOTBALL HANDLERS ====================
+
+  const finishFootballTurn = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
+    const turnsPlayed = state.turnsPlayed + 1;
+    const nextState = { ...fbEndTurn(state), turnsPlayed };
+    const nextTurnPlayer = actingPlayer === 'player1' ? 'player2' : 'player1';
+    const nextTurn = nextTurnPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (turnsPlayed >= MAX_TURNS) {
+      const winner = nextState.scores.player1 === nextState.scores.player2
+        ? null
+        : (nextState.scores.player1 > nextState.scores.player2 ? game.player1_id : game.player2_id);
+      await updateGameState(nextState as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+    } else {
+      await updateGameState(nextState as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    }
+  };
+
+  const handleFootballMove = async (tokenId: string, path: { row: number; col: number }[]) => {
+    const state = gameState as unknown as FootballState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = fbMoveToken(state, me, tokenId, path);
+    if (!result.ok) return;
+    await updateGameState(result.state as unknown as Record<string, unknown>, {});
+  };
+
+  const handleFootballPass = async (dr: number, dc: number) => {
+    const state = gameState as unknown as FootballState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = fbPlayPass(state, me, dr, dc);
+    if (!result.ok) return;
+    await finishFootballTurn(result.state, me);
+  };
+
+  const handleFootballShoot = async (dr: number, dc: number) => {
+    const state = gameState as unknown as FootballState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = fbPlayShoot(state, me, dr, dc);
+    if (!result.ok) return;
+
+    if (result.result === 'goal') {
+      const afterGoal = kickoffAfterGoal(result.state, me);
+      if (afterGoal.scores[me] >= TARGET_GOALS) {
+        const winner = me === 'player1' ? game.player1_id : game.player2_id;
+        await updateGameState(afterGoal as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+        return;
+      }
+      await finishFootballTurn(afterGoal, me);
+      return;
+    }
+
+    await finishFootballTurn(result.state, me);
+  };
+
+  const handleFootballEndTurn = async () => {
+    const state = gameState as unknown as FootballState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    await finishFootballTurn(state, me);
+  };
+
   // ==================== GAME OVER CHECK ====================
 
   const isGameFinished = () => {
@@ -616,6 +682,17 @@ const GamePage = () => {
         return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
       case 'backgammon':
         return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
+      case 'football':
+        return (
+          <FootballGame
+            game={game}
+            playerId={playerId}
+            onMove={handleFootballMove}
+            onPass={handleFootballPass}
+            onShoot={handleFootballShoot}
+            onEndTurn={handleFootballEndTurn}
+          />
+        );
       case 'memory':
         return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       default:
