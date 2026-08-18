@@ -20,6 +20,7 @@ import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
+import { GameRulesDrawer } from '@/components/GameRulesDrawer';
 import { Button } from '@/components/ui/button';
 import {
   BattleshipCell, checkMorpionWinner, isMorpionDraw, checkAllShipsSunk,
@@ -630,7 +631,10 @@ const GamePage = () => {
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Accueil</span>
           </button>
-          <h1 className="font-display text-xl font-bold text-foreground">{gameTitle}</h1>
+          <h1 className="font-display text-xl font-bold text-foreground flex items-center gap-1.5">
+            {gameTitle}
+            <GameRulesDrawer gameType={game.game_type} gameTitle={gameTitle} />
+          </h1>
           <div className="flex items-center gap-4">
             {(scores.player1 > 0 || scores.player2 > 0) && (
               <div className="flex items-center gap-2 text-sm">

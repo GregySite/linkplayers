@@ -5,6 +5,7 @@ import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, 
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
+import { GameRulesDrawer } from '@/components/GameRulesDrawer';
 import { useGame, GameType } from '@/hooks/useGame';
 
 const GAMES: { type: GameType; title: string; description: string; icon: React.ReactNode }[] = [
@@ -124,6 +125,7 @@ const Index = () => {
                   <Bot className="w-5 h-5 mr-2" />
                   Jouer solo (vs IA)
                 </Button>
+                <GameRulesDrawer gameType={selectedGame.type} gameTitle={selectedGame.title} variant="full" />
                 <DrawerClose asChild>
                   <Button variant="ghost">Annuler</Button>
                 </DrawerClose>

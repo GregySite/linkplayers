@@ -19,6 +19,7 @@ import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
+import { GameRulesDrawer } from '@/components/GameRulesDrawer';
 import {
   BattleshipCell, checkMorpionWinner, isMorpionDraw,
   checkConnect4Winner, isConnect4Draw, getDropRow,
@@ -760,8 +761,9 @@ const SoloGamePage = () => {
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Accueil</span>
           </button>
-          <h1 className="font-display text-xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="font-display text-xl font-bold text-foreground flex items-center gap-1.5">
             {gameTitle}
+            <GameRulesDrawer gameType={game.game_type} gameTitle={gameTitle} />
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
               <Bot className="w-3 h-3" /> Solo
             </span>
