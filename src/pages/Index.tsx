@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot } from 'lucide-react';
-import { GameCard } from '@/components/GameCard';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5 } from 'lucide-react';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { useGame, GameType } from '@/hooks/useGame';
 
 const GAMES: { type: GameType; title: string; description: string; icon: React.ReactNode }[] = [
@@ -20,12 +20,15 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'yaniv', title: 'Yaniv', description: 'Défausse tes cartes, annonce Yaniv à 7 points ou moins... mais gare à l\'Assaf !', icon: <Diamond className="w-6 h-6" /> },
   { type: 'rami', title: 'Rami', description: 'Forme des brelans et des suites, pose tes combinaisons et vide ta main avant l\'adversaire !', icon: <Club className="w-6 h-6" /> },
   { type: 'awale', title: 'Awalé', description: 'Jeu de plateau africain traditionnel. Sème tes graines et capture celles de l\'adversaire !', icon: <CircleDot className="w-6 h-6" /> },
+  { type: 'belote', title: 'Belote', description: 'Le classique des cartes françaises. Atout, plis, belote-rebelote et dix de der !', icon: <Heart className="w-6 h-6" /> },
+  { type: 'backgammon', title: 'Backgammon', description: 'Le grand classique du plateau et des dés. Rentre tes pions à la maison avant l\'adversaire !', icon: <Dice5 className="w-6 h-6" /> },
 ];
 
 const Index = () => {
   const navigate = useNavigate();
   const { createGame, joinGame, loading, error } = useGame();
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<typeof GAMES[number] | null>(null);
 
   const handleCreateGame = async (type: GameType) => {
     const game = await createGame(type);
@@ -68,23 +71,18 @@ const Index = () => {
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="max-w-2xl mx-auto">
             <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-4 text-center font-medium">Choisir un jeu</h2>
-            <div className="grid gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {GAMES.map((g) => (
-                <div key={g.type} className="flex gap-2 items-stretch">
-                  <div className="flex-1">
-                    <GameCard type={g.type} title={g.title} description={g.description} icon={g.icon} onClick={() => handleCreateGame(g.type)} />
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate(`/solo/${g.type}`)}
-                    className="flex flex-col items-center justify-center gap-1 px-4 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                    title="Jouer seul contre l'ordi"
-                  >
-                    <Bot className="w-5 h-5 text-primary" />
-                    <span className="text-xs text-muted-foreground font-medium">Solo</span>
-                  </motion.button>
-                </div>
+                <motion.button
+                  key={g.type}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setSelectedGame(g)}
+                  className="flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-colors text-center"
+                >
+                  <div className="text-primary">{g.icon}</div>
+                  <span className="text-sm font-medium text-foreground leading-tight">{g.title}</span>
+                </motion.button>
               ))}
             </div>
           </motion.div>
@@ -98,6 +96,42 @@ const Index = () => {
       </footer>
 
       <JoinGameModal isOpen={joinModalOpen} onClose={() => setJoinModalOpen(false)} onJoin={handleJoinGame} loading={loading} error={error} />
+
+      <Drawer open={!!selectedGame} onOpenChange={(open) => !open && setSelectedGame(null)}>
+        <DrawerContent>
+          {selectedGame && (
+            <>
+              <DrawerHeader>
+                <div className="flex justify-center mb-2 text-primary">{selectedGame.icon}</div>
+                <DrawerTitle className="text-center">{selectedGame.title}</DrawerTitle>
+                <DrawerDescription className="text-center">{selectedGame.description}</DrawerDescription>
+              </DrawerHeader>
+              <DrawerFooter>
+                <Button
+                  onClick={() => { setSelectedGame(null); handleCreateGame(selectedGame.type); }}
+                  size="lg"
+                  className="font-semibold"
+                >
+                  <Users className="w-5 h-5 mr-2" />
+                  Jouer en duo
+                </Button>
+                <Button
+                  onClick={() => { setSelectedGame(null); navigate(`/solo/${selectedGame.type}`); }}
+                  variant="outline"
+                  size="lg"
+                  className="border-primary/50 hover:bg-primary/10 hover:border-primary font-semibold"
+                >
+                  <Bot className="w-5 h-5 mr-2" />
+                  Jouer solo (vs IA)
+                </Button>
+                <DrawerClose asChild>
+                  <Button variant="ghost">Annuler</Button>
+                </DrawerClose>
+              </DrawerFooter>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

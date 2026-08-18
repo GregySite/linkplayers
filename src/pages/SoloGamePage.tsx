@@ -15,6 +15,8 @@ import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
 import { RamiGame } from '@/components/games/RamiGame';
 import { AwaleGame } from '@/components/games/AwaleGame';
+import { BeloteGame } from '@/components/games/BeloteGame';
+import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +36,11 @@ import {
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin, ramiAI, handIndicesForIds,
 } from '@/lib/ramiUtils';
 import { AwaleState, playAwaleMove, awaleAI } from '@/lib/awaleUtils';
+import { BeloteState, playBeloteCard, beloteAI } from '@/lib/beloteUtils';
+import {
+  BackgammonState, rollDice as bgRollDice, playBackgammonMove, backgammonAI,
+  skipIfNoMoves as bgSkipIfNoMoves,
+} from '@/lib/backgammonUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -43,7 +50,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Awalé',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Awalé', belote: 'Belote', backgammon: 'Backgammon',
 };
 
 const SoloGamePage = () => {
@@ -606,6 +613,104 @@ const SoloGamePage = () => {
     if (nextTurn === 'cpu') playAwaleCpuTurn(result.state);
   };
 
+  // ==================== BELOTE ====================
+  const playBeloteCpuTurn = (current: BeloteState) => {
+    scheduleCPU(async () => {
+      const move = beloteAI(current, 'player2');
+      const result = playBeloteCard(current, 'player2', move);
+
+      if (result.finished) {
+        await updateGameState(result.state as unknown as Record<string, unknown>, {
+          status: 'finished' as GameStatus,
+          winner: result.winner ? (result.winner === 'player1' ? 'human' : 'cpu') : null,
+        });
+        return;
+      }
+
+      const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playBeloteCpuTurn(result.state);
+    }, 1000);
+  };
+
+  const handleBelotePlay = async (handIndex: number) => {
+    const state = gameState as unknown as BeloteState;
+    const result = playBeloteCard(state, 'player1', handIndex);
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, {
+        status: 'finished' as GameStatus,
+        winner: result.winner ? (result.winner === 'player1' ? 'human' : 'cpu') : null,
+      });
+      return;
+    }
+
+    const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    if (nextTurn === 'cpu') playBeloteCpuTurn(result.state);
+  };
+
+  // ==================== BACKGAMMON ====================
+  const playBackgammonCpuTurn = (current: BackgammonState) => {
+    scheduleCPU(async () => {
+      let state = bgRollDice(current);
+      const skip = bgSkipIfNoMoves(state, 'player2');
+      if (skip) {
+        await updateGameState(skip as unknown as Record<string, unknown>, { current_turn: 'human' });
+        return;
+      }
+
+      const dieValues = [...new Set(state.dice)];
+      for (const die of dieValues) {
+        while (state.dice.includes(die)) {
+          const from = backgammonAI(state, 'player2', die);
+          if (from === null) break;
+          const result = playBackgammonMove(state, 'player2', from, die);
+          state = result.state;
+          if (result.finished) {
+            await updateGameState(state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'cpu' });
+            return;
+          }
+          if (result.turnOver) {
+            await updateGameState(state as unknown as Record<string, unknown>, { current_turn: 'human' });
+            return;
+          }
+        }
+      }
+      // Filet de sécurité : si des dés restent injouables, on passe la main
+      await updateGameState({ ...state, dice: [], diceRolled: false } as unknown as Record<string, unknown>, { current_turn: 'human' });
+    }, 1000);
+  };
+
+  const handleBackgammonRoll = async () => {
+    const state = gameState as unknown as BackgammonState;
+    const rolled = bgRollDice(state);
+    const skip = bgSkipIfNoMoves(rolled, 'player1');
+    if (skip) {
+      await updateGameState(skip as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+      playBackgammonCpuTurn(skip);
+      return;
+    }
+    await updateGameState(rolled as unknown as Record<string, unknown>, {});
+  };
+
+  const handleBackgammonMove = async (from: number, die: number) => {
+    const state = gameState as unknown as BackgammonState;
+    const result = playBackgammonMove(state, 'player1', from, die);
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'human' });
+      return;
+    }
+
+    if (result.turnOver) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+      playBackgammonCpuTurn(result.state);
+    } else {
+      await updateGameState(result.state as unknown as Record<string, unknown>, {});
+    }
+  };
+
   // ==================== GAME OVER ====================
   const isFinished = game.status === 'finished' || !!game.winner;
 
@@ -639,6 +744,8 @@ const SoloGamePage = () => {
           />
         );
       case 'awale': return <AwaleGame game={game} playerId={playerId} onPlay={handleAwalePlay} />;
+      case 'belote': return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
+      case 'backgammon': return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'memory': return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       case 'battleship': return <BattleshipGame game={game} playerId={playerId} onPlaceShips={handleBattleshipPlaceShips} onShoot={handleBattleshipShoot} />;
       default: return <p className="text-muted-foreground">Jeu non supporté</p>;

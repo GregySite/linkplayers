@@ -16,6 +16,8 @@ import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
 import { RamiGame } from '@/components/games/RamiGame';
 import { AwaleGame } from '@/components/games/AwaleGame';
+import { BeloteGame } from '@/components/games/BeloteGame';
+import { BackgammonGame } from '@/components/games/BackgammonGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,8 @@ import {
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin,
 } from '@/lib/ramiUtils';
 import { AwaleState, playAwaleMove } from '@/lib/awaleUtils';
+import { BeloteState, playBeloteCard } from '@/lib/beloteUtils';
+import { BackgammonState, rollDice as bgRollDice, playBackgammonMove, skipIfNoMoves as bgSkipIfNoMoves } from '@/lib/backgammonUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -49,6 +53,8 @@ const GAME_TITLES: Record<string, string> = {
   yaniv: 'Yaniv',
   rami: 'Rami',
   awale: 'Awalé',
+  belote: 'Belote',
+  backgammon: 'Backgammon',
 };
 
 const GamePage = () => {
@@ -463,6 +469,62 @@ const GamePage = () => {
     }
   };
 
+  // ==================== BELOTE HANDLERS ====================
+
+  const handleBelotePlay = async (handIndex: number) => {
+    const state = gameState as unknown as BeloteState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playBeloteCard(state, me, handIndex);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (result.finished) {
+      const winner = result.winner ? (result.winner === 'player1' ? game.player1_id : game.player2_id) : null;
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { status: 'finished' as GameStatus, winner }
+      );
+    } else {
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { current_turn: nextTurn }
+      );
+    }
+  };
+
+  // ==================== BACKGAMMON HANDLERS ====================
+
+  const handleBackgammonRoll = async () => {
+    const state = gameState as unknown as BackgammonState;
+    let next = bgRollDice(state);
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const skip = bgSkipIfNoMoves(next, me);
+    if (skip) {
+      const opponentTurn = amPlayer1 ? game.player2_id : game.player1_id;
+      await updateGameState(skip as unknown as Record<string, unknown>, { current_turn: opponentTurn });
+      return;
+    }
+    await updateGameState(next as unknown as Record<string, unknown>, {});
+  };
+
+  const handleBackgammonMove = async (from: number, die: number) => {
+    const state = gameState as unknown as BackgammonState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playBackgammonMove(state, me, from, die);
+
+    if (result.finished) {
+      const winner = result.winner === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(result.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+      return;
+    }
+
+    if (result.turnOver) {
+      const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    } else {
+      await updateGameState(result.state as unknown as Record<string, unknown>, {});
+    }
+  };
+
   // ==================== GAME OVER CHECK ====================
 
   const isGameFinished = () => {
@@ -549,6 +611,10 @@ const GamePage = () => {
         );
       case 'awale':
         return <AwaleGame game={game} playerId={playerId} onPlay={handleAwalePlay} />;
+      case 'belote':
+        return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
+      case 'backgammon':
+        return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'memory':
         return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       default:

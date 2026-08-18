@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -167,6 +167,45 @@ function createAwaleState() {
   }
 }
 
+type BeloteSuit = 'spades' | 'hearts' | 'diamonds' | 'clubs'
+interface BeloteCard { id: string; suit: BeloteSuit; rank: number }
+
+function createBeloteRound(round: number, scores: { player1: number; player2: number }) {
+  const suits: BeloteSuit[] = ['spades', 'hearts', 'diamonds', 'clubs']
+  const deck: BeloteCard[] = []
+  for (const suit of suits) {
+    for (const rank of [7, 8, 9, 10, 11, 12, 13, 14]) deck.push({ id: `${suit}-${rank}`, suit, rank })
+  }
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]]
+  }
+  const trumpSuit = suits[Math.floor(Math.random() * 4)]
+  return {
+    hands: { player1: deck.slice(0, 16), player2: deck.slice(16, 32) },
+    trumpSuit,
+    currentTrick: [],
+    roundPoints: { player1: 0, player2: 0 },
+    beloteRebeloteAwardedTo: null,
+    scores,
+    round,
+    roundSummary: null,
+  }
+}
+
+function createBackgammonState() {
+  const points = Array(24).fill(0)
+  points[23] = 2; points[12] = 5; points[7] = 3; points[5] = 5
+  points[0] = -2; points[11] = -5; points[16] = -3; points[18] = -5
+  return {
+    points,
+    bar: { player1: 0, player2: 0 },
+    off: { player1: 0, player2: 0 },
+    dice: [],
+    diceRolled: false,
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -200,6 +239,10 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { ...createRamiRound(1, { player1: 0, player2: 0 }), ...base }
     case 'awale':
       return { ...createAwaleState(), ...base }
+    case 'belote':
+      return { ...createBeloteRound(1, { player1: 0, player2: 0 }), ...base }
+    case 'backgammon':
+      return { ...createBackgammonState(), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -369,6 +412,34 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       const sc = state.scores as Record<string, unknown> | undefined
       if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
         return 'Invalid awale scores'
+      }
+      break
+    }
+    case 'belote': {
+      const hands = state.hands as Record<string, unknown> | undefined
+      if (!hands || !Array.isArray(hands.player1) || !Array.isArray(hands.player2)) {
+        return 'Belote hands must be arrays'
+      }
+      if (!Array.isArray(state.currentTrick)) {
+        return 'Belote currentTrick must be an array'
+      }
+      const sc = state.scores as Record<string, unknown> | undefined
+      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
+        return 'Invalid belote scores'
+      }
+      break
+    }
+    case 'backgammon': {
+      if (!Array.isArray(state.points) || state.points.length !== 24) {
+        return 'Backgammon points must be an array of 24'
+      }
+      const bar = state.bar as Record<string, unknown> | undefined
+      const off = state.off as Record<string, unknown> | undefined
+      if (!bar || typeof bar.player1 !== 'number' || typeof bar.player2 !== 'number') {
+        return 'Invalid backgammon bar'
+      }
+      if (!off || typeof off.player1 !== 'number' || typeof off.player2 !== 'number') {
+        return 'Invalid backgammon off'
       }
       break
     }
