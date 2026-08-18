@@ -142,69 +142,66 @@ export const ChkobbaGame = ({ game, playerId, onPlay }: ChkobbaGameProps) => {
         ))}
       </div>
 
-      {/* Tapis */}
-      <div className="rounded-2xl border border-border bg-card/50 p-3 min-h-[6.5rem]">
-        <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground mb-2 text-center">Tapis</p>
-        <div className="flex flex-wrap justify-center gap-2">
-          <AnimatePresence>
-            {table.map((card, index) => {
-              const isSelected = selectedTable.includes(index);
-              const isHighlighted = highlighted.includes(index);
-              return (
-                <motion.button
-                  key={card.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  whileTap={isHighlighted ? { scale: 0.94 } : {}}
-                  onClick={() => handleTableClick(index)}
-                  className={`w-12 h-16 rounded-lg border-2 flex items-center justify-center transition-colors ${
-                    isSelected
-                      ? 'bg-primary/20 border-primary text-primary'
-                      : isHighlighted
-                        ? 'bg-card border-primary/50 text-foreground'
-                        : 'bg-card border-border text-foreground'
-                  }`}
-                >
-                  <CardFace card={card} />
-                </motion.button>
-              );
-            })}
-          </AnimatePresence>
-          {table.length === 0 && (
-            <p className="text-xs text-muted-foreground py-6">Tapis vide</p>
-          )}
-        </div>
-      </div>
-
-      {/* Dernier coup — reste affiché jusqu'au coup suivant */}
-      {lastPlay && (
-        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
-          <p className="text-center text-xs text-muted-foreground">
-            {lastPlay.player === me ? 'Ton dernier coup' : 'Dernier coup de l\'adversaire'}
-            {lastPlay.chkobba && <span className="text-primary font-bold"> · CHKOBBA !</span>}
-          </p>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[0.6rem] uppercase tracking-wider text-muted-foreground">Carte jouée</span>
-              <MiniCard card={lastPlay.card} />
-            </div>
-            {lastPlay.captured.length > 0 ? (
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[0.6rem] uppercase tracking-wider text-muted-foreground">
-                  Ramassées ({lastPlay.captured.length})
-                </span>
-                <div className="flex gap-1 flex-wrap justify-center">
-                  {lastPlay.captured.map(c => <MiniCard key={c.id} card={c} />)}
-                </div>
-              </div>
-            ) : (
-              <span className="text-xs text-muted-foreground self-end pb-3">carte posée au tapis</span>
+      {/* Tapis + dernier coup (colonne étroite à droite) */}
+      <div className="flex gap-3 items-start">
+        <div className="flex-1 rounded-2xl border border-border bg-card/50 p-3 min-h-[6.5rem]">
+          <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground mb-2 text-center">Tapis</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <AnimatePresence>
+              {table.map((card, index) => {
+                const isSelected = selectedTable.includes(index);
+                const isHighlighted = highlighted.includes(index);
+                return (
+                  <motion.button
+                    key={card.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    whileTap={isHighlighted ? { scale: 0.94 } : {}}
+                    onClick={() => handleTableClick(index)}
+                    className={`w-12 h-16 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? 'bg-primary/20 border-primary text-primary'
+                        : isHighlighted
+                          ? 'bg-card border-primary/50 text-foreground'
+                          : 'bg-card border-border text-foreground'
+                    }`}
+                  >
+                    <CardFace card={card} />
+                  </motion.button>
+                );
+              })}
+            </AnimatePresence>
+            {table.length === 0 && (
+              <p className="text-xs text-muted-foreground py-6">Tapis vide</p>
             )}
           </div>
         </div>
-      )}
+
+        {/* Dernier coup — colonne étroite, reste affiché jusqu'au coup suivant */}
+        {lastPlay && (
+          <div className="w-20 shrink-0 rounded-xl border border-border bg-card/50 p-2 space-y-2">
+            <p className="text-center text-[0.6rem] text-muted-foreground leading-tight">
+              {lastPlay.player === me ? 'Ton coup' : 'Coup adverse'}
+              {lastPlay.chkobba && <span className="block text-primary font-bold">CHKOBBA !</span>}
+            </p>
+            <div className="flex flex-col items-center gap-1.5">
+              <MiniCard card={lastPlay.card} />
+              {lastPlay.captured.length > 0 ? (
+                <>
+                  <span className="text-[0.55rem] text-muted-foreground">+{lastPlay.captured.length}</span>
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {lastPlay.captured.map(c => <MiniCard key={c.id} card={c} />)}
+                  </div>
+                </>
+              ) : (
+                <span className="text-[0.55rem] text-muted-foreground text-center">posée</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Ma main */}
       <div className="space-y-3">
