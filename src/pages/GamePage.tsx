@@ -14,6 +14,7 @@ import { DamesGame } from '@/components/games/DamesGame';
 import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
+import { RamiGame } from '@/components/games/RamiGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,10 @@ import { DamesMove, applyDamesMove, isDamesGameOver, countDamesPieces } from '@/
 import { MemoryCard, isMemoryGameOver, checkMemoryMatch } from '@/lib/memoryUtils';
 import { ChkobbaState, playChkobbaCard } from '@/lib/chkobbaUtils';
 import { YanivState, playYanivMove, callYaniv } from '@/lib/yanivUtils';
+import {
+  RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
+  discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin,
+} from '@/lib/ramiUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -40,6 +45,7 @@ const GAME_TITLES: Record<string, string> = {
   memory: 'Memory',
   chkobba: 'Chkobba',
   yaniv: 'Yaniv',
+  rami: 'Rami',
 };
 
 const GamePage = () => {
@@ -367,6 +373,71 @@ const GamePage = () => {
     }
   };
 
+  // ==================== RAMI HANDLERS ====================
+
+  const handleRamiDraw = async (from: 'deck' | 'discard') => {
+    const state = gameState as unknown as RamiState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const next = ramiDraw(state, me, from);
+    await updateGameState(next as unknown as Record<string, unknown>, {});
+  };
+
+  const handleRamiLayMeld = async (handIndices: number[]) => {
+    const state = gameState as unknown as RamiState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const { state: laid, ok } = ramiLayMeld(state, me, handIndices);
+    if (!ok) return;
+
+    const clean = ramiCheckCleanWin(laid, me);
+    if (clean) {
+      const nextTurn = clean.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+      if (clean.finished) {
+        const winner = clean.winner === 'player1' ? game.player1_id : game.player2_id;
+        await updateGameState(clean.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+      } else {
+        await updateGameState(clean.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      }
+      return;
+    }
+
+    await updateGameState(laid as unknown as Record<string, unknown>, {});
+  };
+
+  const handleRamiAdd = async (handIndex: number, meldId: string) => {
+    const state = gameState as unknown as RamiState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const { state: added, ok } = ramiAddToMeld(state, me, handIndex, meldId);
+    if (!ok) return;
+
+    const clean = ramiCheckCleanWin(added, me);
+    if (clean) {
+      const nextTurn = clean.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+      if (clean.finished) {
+        const winner = clean.winner === 'player1' ? game.player1_id : game.player2_id;
+        await updateGameState(clean.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+      } else {
+        await updateGameState(clean.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      }
+      return;
+    }
+
+    await updateGameState(added as unknown as Record<string, unknown>, {});
+  };
+
+  const handleRamiDiscard = async (handIndex: number) => {
+    const state = gameState as unknown as RamiState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = ramiDiscard(state, me, handIndex);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (result.finished) {
+      const winner = result.winner === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(result.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+    } else {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    }
+  };
+
   // ==================== GAME OVER CHECK ====================
 
   const isGameFinished = () => {
@@ -440,6 +511,17 @@ const GamePage = () => {
         return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
       case 'yaniv':
         return <YanivGame game={game} playerId={playerId} onPlay={handleYanivPlay} onYaniv={handleYanivCall} />;
+      case 'rami':
+        return (
+          <RamiGame
+            game={game}
+            playerId={playerId}
+            onDraw={handleRamiDraw}
+            onLayMeld={handleRamiLayMeld}
+            onAddToMeld={handleRamiAdd}
+            onDiscard={handleRamiDiscard}
+          />
+        );
       case 'memory':
         return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       default:

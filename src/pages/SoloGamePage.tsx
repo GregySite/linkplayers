@@ -13,6 +13,7 @@ import { DamesGame } from '@/components/games/DamesGame';
 import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
+import { RamiGame } from '@/components/games/RamiGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +29,10 @@ import { MemoryCard, isMemoryGameOver } from '@/lib/memoryUtils';
 import { ChkobbaState, playChkobbaCard, chkobbaAI } from '@/lib/chkobbaUtils';
 import { YanivState, playYanivMove, callYaniv, yanivAI } from '@/lib/yanivUtils';
 import {
+  RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
+  discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin, ramiAI, handIndicesForIds,
+} from '@/lib/ramiUtils';
+import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
   MemoryAI,
@@ -36,7 +41,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami',
 };
 
 const SoloGamePage = () => {
@@ -450,6 +455,116 @@ const SoloGamePage = () => {
     if (nextTurn === 'cpu') playYanivCpuTurn(result.state);
   };
 
+  // ==================== RAMI ====================
+  const playRamiCpuTurn = (current: RamiState) => {
+    scheduleCPU(async () => {
+      const move = ramiAI(current, 'player2');
+      let state = ramiDraw(current, 'player2', move.draw.from);
+
+      for (const ids of move.meldCardIds) {
+        const idx = handIndicesForIds(state.hands.player2, ids);
+        if (idx.length === ids.length) {
+          const r = ramiLayMeld(state, 'player2', idx);
+          if (r.ok) state = r.state;
+        }
+      }
+      for (const add of move.additions) {
+        const idx = handIndicesForIds(state.hands.player2, [add.cardId])[0];
+        if (idx !== undefined) {
+          const r = ramiAddToMeld(state, 'player2', idx, add.meldId);
+          if (r.ok) state = r.state;
+        }
+      }
+
+      const clean = ramiCheckCleanWin(state, 'player2');
+      if (clean) {
+        state = clean.state;
+        if (clean.finished) {
+          await updateGameState(state as unknown as Record<string, unknown>, {
+            status: 'finished' as GameStatus, winner: clean.winner === 'player1' ? 'human' : 'cpu',
+          });
+          return;
+        }
+        const nextTurn = clean.nextPlayer === 'player1' ? 'human' : 'cpu';
+        await updateGameState(state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+        if (nextTurn === 'cpu') playRamiCpuTurn(state);
+        return;
+      }
+
+      const discardIdx = handIndicesForIds(state.hands.player2, [move.discardCardId])[0] ?? 0;
+      const result = ramiDiscard(state, 'player2', discardIdx);
+      state = result.state;
+      if (result.finished) {
+        await updateGameState(state as unknown as Record<string, unknown>, {
+          status: 'finished' as GameStatus, winner: result.winner === 'player1' ? 'human' : 'cpu',
+        });
+        return;
+      }
+      const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+      await updateGameState(state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playRamiCpuTurn(state);
+    }, 1000);
+  };
+
+  const handleRamiDraw = async (from: 'deck' | 'discard') => {
+    const state = gameState as unknown as RamiState;
+    const next = ramiDraw(state, 'player1', from);
+    await updateGameState(next as unknown as Record<string, unknown>, {});
+  };
+
+  const handleRamiLayMeld = async (handIndices: number[]) => {
+    const state = gameState as unknown as RamiState;
+    const { state: laid, ok } = ramiLayMeld(state, 'player1', handIndices);
+    if (!ok) return;
+
+    const clean = ramiCheckCleanWin(laid, 'player1');
+    if (clean) {
+      if (clean.finished) {
+        await updateGameState(clean.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'human' });
+        return;
+      }
+      const nextTurn = clean.nextPlayer === 'player1' ? 'human' : 'cpu';
+      await updateGameState(clean.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playRamiCpuTurn(clean.state);
+      return;
+    }
+
+    await updateGameState(laid as unknown as Record<string, unknown>, {});
+  };
+
+  const handleRamiAdd = async (handIndex: number, meldId: string) => {
+    const state = gameState as unknown as RamiState;
+    const { state: added, ok } = ramiAddToMeld(state, 'player1', handIndex, meldId);
+    if (!ok) return;
+
+    const clean = ramiCheckCleanWin(added, 'player1');
+    if (clean) {
+      if (clean.finished) {
+        await updateGameState(clean.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'human' });
+        return;
+      }
+      const nextTurn = clean.nextPlayer === 'player1' ? 'human' : 'cpu';
+      await updateGameState(clean.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playRamiCpuTurn(clean.state);
+      return;
+    }
+
+    await updateGameState(added as unknown as Record<string, unknown>, {});
+  };
+
+  const handleRamiDiscard = async (handIndex: number) => {
+    const state = gameState as unknown as RamiState;
+    const result = ramiDiscard(state, 'player1', handIndex);
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'human' });
+      return;
+    }
+    const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    if (nextTurn === 'cpu') playRamiCpuTurn(result.state);
+  };
+
   // ==================== GAME OVER ====================
   const isFinished = game.status === 'finished' || !!game.winner;
 
@@ -471,6 +586,17 @@ const SoloGamePage = () => {
       case 'dames': return <DamesGame game={game} playerId={playerId} onMove={handleDamesMove} />;
       case 'chkobba': return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
       case 'yaniv': return <YanivGame game={game} playerId={playerId} onPlay={handleYanivPlay} onYaniv={handleYanivCall} />;
+      case 'rami':
+        return (
+          <RamiGame
+            game={game}
+            playerId={playerId}
+            onDraw={handleRamiDraw}
+            onLayMeld={handleRamiLayMeld}
+            onAddToMeld={handleRamiAdd}
+            onDiscard={handleRamiDiscard}
+          />
+        );
       case 'memory': return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       case 'battleship': return <BattleshipGame game={game} playerId={playerId} onPlaceShips={handleBattleshipPlaceShips} onShoot={handleBattleshipShoot} />;
       default: return <p className="text-muted-foreground">Jeu non supporté</p>;

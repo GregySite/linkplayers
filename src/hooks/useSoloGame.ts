@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Game, GameType, GameStatus } from '@/hooks/useGame';
 import { createChkobbaState } from '@/lib/chkobbaUtils';
 import { createYanivState } from '@/lib/yanivUtils';
+import { createRamiState } from '@/lib/ramiUtils';
 
 /**
  * Hook that mimics useGame but runs entirely client-side for Solo mode.
@@ -23,6 +24,7 @@ export const useSoloGame = (gameType: GameType) => {
       }
       case 'chkobba': return createChkobbaState() as unknown as Record<string, unknown>;
       case 'yaniv': return createYanivState() as unknown as Record<string, unknown>;
+      case 'rami': return createRamiState() as unknown as Record<string, unknown>;
       case 'pendu': return { word: null, guessedLetters: [] };
       case 'dames': {
         const board: (string | null)[] = Array(100).fill(null);

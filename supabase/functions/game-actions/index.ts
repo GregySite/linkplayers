@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -128,6 +128,37 @@ function createYanivRound(round: number, scores: { player1: number; player2: num
   }
 }
 
+type RamiSuit = 'spades' | 'hearts' | 'diamonds' | 'clubs' | 'joker'
+interface RamiCard { id: string; suit: RamiSuit; rank: number }
+
+function createRamiRound(round: number, scores: { player1: number; player2: number }) {
+  const suits: RamiSuit[] = ['spades', 'hearts', 'diamonds', 'clubs']
+  const deck: RamiCard[] = []
+  for (const suit of suits) {
+    for (let rank = 1; rank <= 13; rank++) deck.push({ id: `${suit}-${rank}`, suit, rank })
+  }
+  deck.push({ id: 'joker-1', suit: 'joker', rank: 0 })
+  deck.push({ id: 'joker-2', suit: 'joker', rank: 0 })
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]]
+  }
+  const p1 = deck.splice(0, 13)
+  const p2 = deck.splice(0, 13)
+  const firstDiscard = deck.splice(0, 1)
+  return {
+    deck,
+    discardPile: firstDiscard,
+    hands: { player1: p1, player2: p2 },
+    melds: [],
+    scores,
+    round,
+    hasDrawn: false,
+    lastDrawFrom: null,
+    roundSummary: null,
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -157,6 +188,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { ...createChkobbaRound(1, { player1: 0, player2: 0 }), ...base }
     case 'yaniv':
       return { ...createYanivRound(1, { player1: 0, player2: 0 }), ...base }
+    case 'rami':
+      return { ...createRamiRound(1, { player1: 0, player2: 0 }), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -302,6 +335,20 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       const sc = state.scores as Record<string, unknown> | undefined
       if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
         return 'Invalid yaniv scores'
+      }
+      break
+    }
+    case 'rami': {
+      if (!Array.isArray(state.deck) || !Array.isArray(state.discardPile) || !Array.isArray(state.melds)) {
+        return 'Rami deck, discardPile and melds must be arrays'
+      }
+      const hands = state.hands as Record<string, unknown> | undefined
+      if (!hands || !Array.isArray(hands.player1) || !Array.isArray(hands.player2)) {
+        return 'Rami hands must be arrays'
+      }
+      const sc = state.scores as Record<string, unknown> | undefined
+      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
+        return 'Invalid rami scores'
       }
       break
     }
