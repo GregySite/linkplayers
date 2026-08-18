@@ -43,7 +43,7 @@ import { BeloteState, playBeloteCard } from '@/lib/beloteUtils';
 import { BackgammonState, rollDice as bgRollDice, playBackgammonMove, skipIfNoMoves as bgSkipIfNoMoves } from '@/lib/backgammonUtils';
 import {
   FootballState, moveToken as fbMoveToken, playPass as fbPlayPass, playShoot as fbPlayShoot,
-  kickoffAfterGoal, endTurn as fbEndTurn, TARGET_GOALS, MAX_TURNS,
+  playTackle as fbPlayTackle, kickoffAfterGoal, endTurn as fbEndTurn, TARGET_GOALS, MAX_TURNS, MAX_MOVES_PER_TURN,
 } from '@/lib/footballUtils';
 
 const GAME_TITLES: Record<string, string> = {
@@ -536,7 +536,7 @@ const GamePage = () => {
 
   const finishFootballTurn = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
     const turnsPlayed = state.turnsPlayed + 1;
-    const nextState = { ...fbEndTurn(state), turnsPlayed };
+    const nextState = { ...fbEndTurn(state, actingPlayer), turnsPlayed };
     const nextTurnPlayer = actingPlayer === 'player1' ? 'player2' : 'player1';
     const nextTurn = nextTurnPlayer === 'player1' ? game.player1_id : game.player2_id;
 
@@ -550,12 +550,21 @@ const GamePage = () => {
     }
   };
 
-  const handleFootballMove = async (tokenId: string, path: { row: number; col: number }[]) => {
+  // Termine automatiquement le tour si les 2 déplacements ET l'action ballon ont été utilisés
+  const applyFootballState = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
+    if (state.movesUsed >= MAX_MOVES_PER_TURN && state.ballActionUsed) {
+      await finishFootballTurn(state, actingPlayer);
+    } else {
+      await updateGameState(state as unknown as Record<string, unknown>, {});
+    }
+  };
+
+  const handleFootballMove = async (tokenId: string, dr: number, dc: number) => {
     const state = gameState as unknown as FootballState;
     const me = amPlayer1 ? 'player1' : 'player2';
-    const result = fbMoveToken(state, me, tokenId, path);
+    const result = fbMoveToken(state, me, tokenId, dr, dc);
     if (!result.ok) return;
-    await updateGameState(result.state as unknown as Record<string, unknown>, {});
+    await applyFootballState(result.state, me);
   };
 
   const handleFootballPass = async (dr: number, dc: number) => {
@@ -563,7 +572,7 @@ const GamePage = () => {
     const me = amPlayer1 ? 'player1' : 'player2';
     const result = fbPlayPass(state, me, dr, dc);
     if (!result.ok) return;
-    await finishFootballTurn(result.state, me);
+    await applyFootballState(result.state, me);
   };
 
   const handleFootballShoot = async (dr: number, dc: number) => {
@@ -583,7 +592,15 @@ const GamePage = () => {
       return;
     }
 
-    await finishFootballTurn(result.state, me);
+    await applyFootballState(result.state, me);
+  };
+
+  const handleFootballTackle = async () => {
+    const state = gameState as unknown as FootballState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = fbPlayTackle(state, me);
+    if (!result.ok) return;
+    await applyFootballState(result.state, me);
   };
 
   const handleFootballEndTurn = async () => {
@@ -690,6 +707,7 @@ const GamePage = () => {
             onMove={handleFootballMove}
             onPass={handleFootballPass}
             onShoot={handleFootballShoot}
+            onTackle={handleFootballTackle}
             onEndTurn={handleFootballEndTurn}
           />
         );

@@ -45,7 +45,7 @@ import {
 } from '@/lib/backgammonUtils';
 import {
   FootballState, moveToken as fbMoveToken, playPass as fbPlayPass, playShoot as fbPlayShoot,
-  kickoffAfterGoal, endTurn as fbEndTurn, footballAI, TARGET_GOALS, MAX_TURNS,
+  playTackle as fbPlayTackle, kickoffAfterGoal, endTurn as fbEndTurn, footballAI, TARGET_GOALS, MAX_TURNS, MAX_MOVES_PER_TURN,
 } from '@/lib/footballUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
@@ -720,7 +720,7 @@ const SoloGamePage = () => {
   // ==================== FOOTBALL ====================
   const finishFootballTurn = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
     const turnsPlayed = state.turnsPlayed + 1;
-    const nextState = { ...fbEndTurn(state), turnsPlayed };
+    const nextState = { ...fbEndTurn(state, actingPlayer), turnsPlayed };
     const nextTurn = actingPlayer === 'player1' ? 'cpu' : 'human';
 
     if (turnsPlayed >= MAX_TURNS) {
@@ -735,17 +735,29 @@ const SoloGamePage = () => {
     if (nextTurn === 'cpu') playFootballCpuTurn(nextState);
   };
 
+  const applyFootballState = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
+    if (state.movesUsed >= MAX_MOVES_PER_TURN && state.ballActionUsed) {
+      await finishFootballTurn(state, actingPlayer);
+    } else {
+      await updateGameState(state as unknown as Record<string, unknown>, {});
+    }
+  };
+
   const playFootballCpuTurn = (current: FootballState) => {
     scheduleCPU(async () => {
       let state = current;
       const plan = footballAI(state, 'player2');
+
       for (const mv of plan.moves) {
-        const r = fbMoveToken(state, 'player2', mv.tokenId, mv.path);
+        const r = fbMoveToken(state, 'player2', mv.tokenId, mv.dr, mv.dc);
         if (r.ok) state = r.state;
       }
 
-      if (plan.ballAction?.type === 'shoot') {
-        const r = fbPlayShoot(state, 'player2', plan.ballAction.dr, plan.ballAction.dc);
+      if (plan.ballAction?.type === 'tackle') {
+        const r = fbPlayTackle(state, 'player2');
+        if (r.ok) state = r.state;
+      } else if (plan.ballAction?.type === 'shoot') {
+        const r = fbPlayShoot(state, 'player2', plan.ballAction.dr!, plan.ballAction.dc!);
         if (r.ok) {
           state = r.state;
           if (r.result === 'goal') {
@@ -759,7 +771,7 @@ const SoloGamePage = () => {
           }
         }
       } else if (plan.ballAction?.type === 'pass') {
-        const r = fbPlayPass(state, 'player2', plan.ballAction.dr, plan.ballAction.dc);
+        const r = fbPlayPass(state, 'player2', plan.ballAction.dr!, plan.ballAction.dc!);
         if (r.ok) state = r.state;
       }
 
@@ -767,18 +779,18 @@ const SoloGamePage = () => {
     }, 900);
   };
 
-  const handleFootballMove = async (tokenId: string, path: { row: number; col: number }[]) => {
+  const handleFootballMove = async (tokenId: string, dr: number, dc: number) => {
     const state = gameState as unknown as FootballState;
-    const result = fbMoveToken(state, 'player1', tokenId, path);
+    const result = fbMoveToken(state, 'player1', tokenId, dr, dc);
     if (!result.ok) return;
-    await updateGameState(result.state as unknown as Record<string, unknown>, {});
+    await applyFootballState(result.state, 'player1');
   };
 
   const handleFootballPass = async (dr: number, dc: number) => {
     const state = gameState as unknown as FootballState;
     const result = fbPlayPass(state, 'player1', dr, dc);
     if (!result.ok) return;
-    await finishFootballTurn(result.state, 'player1');
+    await applyFootballState(result.state, 'player1');
   };
 
   const handleFootballShoot = async (dr: number, dc: number) => {
@@ -796,7 +808,14 @@ const SoloGamePage = () => {
       return;
     }
 
-    await finishFootballTurn(result.state, 'player1');
+    await applyFootballState(result.state, 'player1');
+  };
+
+  const handleFootballTackle = async () => {
+    const state = gameState as unknown as FootballState;
+    const result = fbPlayTackle(state, 'player1');
+    if (!result.ok) return;
+    await applyFootballState(result.state, 'player1');
   };
 
   const handleFootballEndTurn = async () => {
@@ -847,6 +866,7 @@ const SoloGamePage = () => {
             onMove={handleFootballMove}
             onPass={handleFootballPass}
             onShoot={handleFootballShoot}
+            onTackle={handleFootballTackle}
             onEndTurn={handleFootballEndTurn}
           />
         );

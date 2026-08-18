@@ -7,15 +7,17 @@ import {
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
 import {
-  FootballState, ROWS, COLS, GOAL_ROWS, legalMoveCells, bfsPathTo, getCarrier, isGoalkeeper,
+  FootballState, ROWS, COLS, GOAL_ROWS, legalMoveDirections, getCarrier, isGoalkeeper,
+  tacklableToken, MAX_MOVES_PER_TURN,
 } from '@/lib/footballUtils';
 
 interface FootballGameProps {
   game: Game;
   playerId: string;
-  onMove: (tokenId: string, path: { row: number; col: number }[]) => void;
+  onMove: (tokenId: string, dr: number, dc: number) => void;
   onPass: (dr: number, dc: number) => void;
   onShoot: (dr: number, dc: number) => void;
+  onTackle: () => void;
   onEndTurn: () => void;
 }
 
@@ -30,7 +32,7 @@ const ARROWS: { label: string; dr: number; dc: number; Icon: typeof ArrowUp }[] 
   { label: 'SE', dr: 1, dc: 1, Icon: ArrowDownRight },
 ];
 
-export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTurn }: FootballGameProps) => {
+export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onTackle, onEndTurn }: FootballGameProps) => {
   const state = game.game_state as unknown as FootballState;
   const amPlayer1 = game.player1_id === playerId;
   const me = amPlayer1 ? 'player1' : 'player2';
@@ -49,7 +51,9 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
 
   const carrier = isMyTurn ? getCarrier(state) : null;
   const iHaveBall = carrier === me;
-  const legalCells = selectedToken && isMyTurn ? legalMoveCells(state, me, selectedToken) : [];
+  const canTackle = isMyTurn && !state.ballActionUsed && !!tacklableToken(state, me);
+  const movesLeft = MAX_MOVES_PER_TURN - state.movesUsed;
+  const legalDirs = selectedToken && isMyTurn ? legalMoveDirections(state, me, selectedToken) : [];
 
   const tokenAt = (row: number, col: number) => {
     const p1 = state.players.player1.find(t => t.row === row && t.col === col);
@@ -60,27 +64,29 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
   };
 
   const handleCellClick = (row: number, col: number) => {
-    if (!isMyTurn) return;
-    const occupant = tokenAt(row, col);
-
-    if (legalCells.some(c => c.row === row && c.col === col) && selectedToken) {
-      const token = state.players[me].find(t => t.id === selectedToken)!;
-      const path = bfsPathTo(state, token, { row, col }, 99);
-      if (path) onMove(selectedToken, path);
+    if (!isMyTurn || !selectedToken) {
+      if (!isMyTurn) return;
+      const occupant = tokenAt(row, col);
+      if (occupant && occupant.owner === me) setSelectedToken(occupant.id);
+      return;
+    }
+    const token = state.players[me].find(t => t.id === selectedToken);
+    if (!token) return;
+    const dr = row - token.row;
+    const dc = col - token.col;
+    if (legalDirs.some(d => d.dr === dr && d.dc === dc)) {
+      onMove(selectedToken, dr, dc);
       setSelectedToken(null);
       return;
     }
-
-    if (occupant && occupant.owner === me) {
-      setSelectedToken(prev => (prev === occupant.id ? null : occupant.id));
-    }
+    const occupant = tokenAt(row, col);
+    setSelectedToken(occupant && occupant.owner === me ? occupant.id : null);
   };
 
   const isGoalCell = (row: number, col: number) => (col === 0 || col === COLS - 1) && GOAL_ROWS.includes(row);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-lg mx-auto space-y-4">
-      {/* Score */}
       <div className="flex items-center justify-between px-2">
         <div className={`text-center ${isMyTurn ? 'text-primary' : 'text-muted-foreground'}`}>
           <p className="text-xs uppercase tracking-wider">Toi</p>
@@ -88,6 +94,7 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
         </div>
         <div className="text-center text-muted-foreground text-xs">
           <p>Tour {state.turnsPlayed} · 1ᵉʳ à 3 buts</p>
+          {isMyTurn && <p>{movesLeft} déplacement(s) · action ballon {state.ballActionUsed ? 'utilisée' : 'dispo'}</p>}
         </div>
         <div className={`text-center ${!isMyTurn && !isFinished ? 'text-primary' : 'text-muted-foreground'}`}>
           <p className="text-xs uppercase tracking-wider">Adversaire</p>
@@ -104,24 +111,25 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
           </p>
         ) : isMyTurn ? (
           <p className="text-primary font-medium">
-            {iHaveBall
-              ? (selectedToken ? 'Choisis une case surlignée, ou passe/tire ci-dessous' : 'Déplace un joueur, ou passe/tire directement (tir possible à 3 cases ou moins de la cage)')
-              : (selectedToken ? 'Choisis une case surlignée pour déplacer ce joueur' : 'Déplace tes joueurs, puis termine ton tour quand tu as fini')}
+            {canTackle ? 'Tacle possible ! Reprends le ballon à l\'adversaire'
+              : iHaveBall ? 'Le porteur du ballon ne peut pas bouger — passe ou tire pour avancer'
+              : selectedToken ? 'Choisis une case surlignée' : 'Déplace tes joueurs, ou termine ton tour'}
           </p>
         ) : (
           <p className="text-muted-foreground">Au tour de l'adversaire...</p>
         )}
       </div>
 
-      {/* Terrain */}
       <div className="rounded-xl border border-border overflow-hidden bg-green-950/10">
         {Array.from({ length: ROWS }).map((_, row) => (
           <div key={row} className="flex">
             {Array.from({ length: COLS }).map((_, col) => {
               const occupant = tokenAt(row, col);
               const hasBall = state.ball.row === row && state.ball.col === col;
-              const isLegal = legalCells.some(c => c.row === row && c.col === col);
+              const token = selectedToken ? state.players[me].find(t => t.id === selectedToken) : null;
+              const isLegal = token ? legalDirs.some(d => token.row + d.dr === row && token.col + d.dc === col) : false;
               const isSelected = occupant?.id === selectedToken;
+              const frozen = occupant && hasBall; // porteur du ballon = figé
               const goalCell = isGoalCell(row, col);
 
               return (
@@ -135,7 +143,7 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
                   {occupant && (
                     <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 ${
                       occupant.owner === 'player1' ? 'bg-primary border-primary/70' : 'bg-foreground border-foreground/70'
-                    } ${isGoalkeeper(occupant.id) ? 'ring-2 ring-yellow-400' : ''}`} />
+                    } ${isGoalkeeper(occupant.id) ? 'ring-2 ring-yellow-400' : ''} ${frozen ? 'opacity-70' : ''}`} />
                   )}
                   {hasBall && (
                     <div className="absolute w-2 h-2 rounded-full bg-white border border-black/40" style={{ top: '15%', right: '15%' }} />
@@ -147,27 +155,36 @@ export const FootballGame = ({ game, playerId, onMove, onPass, onShoot, onEndTur
         ))}
       </div>
       <p className="text-center text-[0.65rem] text-muted-foreground">
-        <span className="inline-block w-2.5 h-2.5 rounded-full ring-2 ring-yellow-400 align-middle mr-1" /> = gardien (reste dans sa cage)
+        <span className="inline-block w-2.5 h-2.5 rounded-full ring-2 ring-yellow-400 align-middle mr-1" /> = gardien ·
+        pion pâle = porteur du ballon (immobile)
       </p>
 
-      {/* Actions */}
-      {isMyTurn && iHaveBall && !isFinished && (
+      {isMyTurn && !isFinished && (
         <div className="space-y-2">
-          <div className="flex justify-center gap-2">
-            <Button
-              size="sm"
-              variant={actionMode === 'pass' ? 'default' : 'outline'}
-              onClick={() => setActionMode(prev => (prev === 'pass' ? null : 'pass'))}
-            >
-              Passer
-            </Button>
-            <Button
-              size="sm"
-              variant={actionMode === 'shoot' ? 'default' : 'outline'}
-              onClick={() => setActionMode(prev => (prev === 'shoot' ? null : 'shoot'))}
-            >
-              Tirer
-            </Button>
+          <div className="flex justify-center gap-2 flex-wrap">
+            {canTackle && (
+              <Button size="sm" variant="default" onClick={onTackle}>
+                🦵 Tacler
+              </Button>
+            )}
+            {iHaveBall && !state.ballActionUsed && (
+              <>
+                <Button
+                  size="sm"
+                  variant={actionMode === 'pass' ? 'default' : 'outline'}
+                  onClick={() => setActionMode(prev => (prev === 'pass' ? null : 'pass'))}
+                >
+                  Passer
+                </Button>
+                <Button
+                  size="sm"
+                  variant={actionMode === 'shoot' ? 'default' : 'outline'}
+                  onClick={() => setActionMode(prev => (prev === 'shoot' ? null : 'shoot'))}
+                >
+                  Tirer
+                </Button>
+              </>
+            )}
           </div>
           {actionMode && (
             <div className="grid grid-cols-4 gap-1.5 max-w-[12rem] mx-auto">

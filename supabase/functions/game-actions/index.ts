@@ -215,8 +215,8 @@ function createFootballState() {
     players: {
       [kickoffTeam]: [
         { id: `${kickoffTeam}-0`, row: 2, col: 4 },
-        { id: `${kickoffTeam}-1`, row: 0, col: HOME_COL[kickoffTeam] },
-        { id: `${kickoffTeam}-2`, row: 4, col: HOME_COL[kickoffTeam] },
+        { id: `${kickoffTeam}-1`, row: 0, col: 6 },
+        { id: `${kickoffTeam}-2`, row: 4, col: 6 },
         { id: `${kickoffTeam}-gk`, row: 2, col: OWN_GOAL_COL[kickoffTeam] },
       ],
       [other]: [
@@ -229,7 +229,9 @@ function createFootballState() {
     ball: { row: 2, col: 4 },
     scores: { player1: 0, player2: 0 },
     turnsPlayed: 0,
-    movedThisTurn: {},
+    movesUsed: 0,
+    ballActionUsed: false,
+    tackleCooldown: null,
     lastAction: null,
   }
 }
