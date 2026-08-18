@@ -15,6 +15,7 @@ import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
 import { RamiGame } from '@/components/games/RamiGame';
+import { AwaleGame } from '@/components/games/AwaleGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ import {
   RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin,
 } from '@/lib/ramiUtils';
+import { AwaleState, playAwaleMove } from '@/lib/awaleUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -46,6 +48,7 @@ const GAME_TITLES: Record<string, string> = {
   chkobba: 'Chkobba',
   yaniv: 'Yaniv',
   rami: 'Rami',
+  awale: 'Awalé',
 };
 
 const GamePage = () => {
@@ -438,6 +441,28 @@ const GamePage = () => {
     }
   };
 
+  // ==================== AWALÉ HANDLERS ====================
+
+  const handleAwalePlay = async (pitIndex: number) => {
+    const state = gameState as unknown as AwaleState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playAwaleMove(state, me, pitIndex);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (result.finished) {
+      const winner = result.winner ? (result.winner === 'player1' ? game.player1_id : game.player2_id) : null;
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { status: 'finished' as GameStatus, winner }
+      );
+    } else {
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { current_turn: nextTurn }
+      );
+    }
+  };
+
   // ==================== GAME OVER CHECK ====================
 
   const isGameFinished = () => {
@@ -522,6 +547,8 @@ const GamePage = () => {
             onDiscard={handleRamiDiscard}
           />
         );
+      case 'awale':
+        return <AwaleGame game={game} playerId={playerId} onPlay={handleAwalePlay} />;
       case 'memory':
         return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       default:

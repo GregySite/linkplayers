@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot } from 'lucide-react';
 import { GameCard } from '@/components/GameCard';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'memory', title: 'Memory', description: 'Retourne les cartes et trouve les paires avant ton adversaire !', icon: <Layers className="w-6 h-6" /> },
   { type: 'yaniv', title: 'Yaniv', description: 'Défausse tes cartes, annonce Yaniv à 7 points ou moins... mais gare à l\'Assaf !', icon: <Diamond className="w-6 h-6" /> },
   { type: 'rami', title: 'Rami', description: 'Forme des brelans et des suites, pose tes combinaisons et vide ta main avant l\'adversaire !', icon: <Club className="w-6 h-6" /> },
+  { type: 'awale', title: 'Awalé', description: 'Jeu de plateau africain traditionnel. Sème tes graines et capture celles de l\'adversaire !', icon: <CircleDot className="w-6 h-6" /> },
 ];
 
 const Index = () => {

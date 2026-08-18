@@ -14,6 +14,7 @@ import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
 import { RamiGame } from '@/components/games/RamiGame';
+import { AwaleGame } from '@/components/games/AwaleGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +33,7 @@ import {
   RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin, ramiAI, handIndicesForIds,
 } from '@/lib/ramiUtils';
+import { AwaleState, playAwaleMove, awaleAI } from '@/lib/awaleUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -41,7 +43,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Awalé',
 };
 
 const SoloGamePage = () => {
@@ -565,6 +567,45 @@ const SoloGamePage = () => {
     if (nextTurn === 'cpu') playRamiCpuTurn(result.state);
   };
 
+  // ==================== AWALÉ ====================
+  const playAwaleCpuTurn = (current: AwaleState) => {
+    scheduleCPU(async () => {
+      const move = awaleAI(current, 'player2');
+      if (move === -1) return; // ne devrait pas arriver, sécurité
+
+      const result = playAwaleMove(current, 'player2', move);
+
+      if (result.finished) {
+        await updateGameState(result.state as unknown as Record<string, unknown>, {
+          status: 'finished' as GameStatus,
+          winner: result.winner ? (result.winner === 'player1' ? 'human' : 'cpu') : null,
+        });
+        return;
+      }
+
+      const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playAwaleCpuTurn(result.state);
+    }, 1000);
+  };
+
+  const handleAwalePlay = async (pitIndex: number) => {
+    const state = gameState as unknown as AwaleState;
+    const result = playAwaleMove(state, 'player1', pitIndex);
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, {
+        status: 'finished' as GameStatus,
+        winner: result.winner ? (result.winner === 'player1' ? 'human' : 'cpu') : null,
+      });
+      return;
+    }
+
+    const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    if (nextTurn === 'cpu') playAwaleCpuTurn(result.state);
+  };
+
   // ==================== GAME OVER ====================
   const isFinished = game.status === 'finished' || !!game.winner;
 
@@ -597,6 +638,7 @@ const SoloGamePage = () => {
             onDiscard={handleRamiDiscard}
           />
         );
+      case 'awale': return <AwaleGame game={game} playerId={playerId} onPlay={handleAwalePlay} />;
       case 'memory': return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
       case 'battleship': return <BattleshipGame game={game} playerId={playerId} onPlaceShips={handleBattleshipPlaceShips} onShoot={handleBattleshipShoot} />;
       default: return <p className="text-muted-foreground">Jeu non supporté</p>;

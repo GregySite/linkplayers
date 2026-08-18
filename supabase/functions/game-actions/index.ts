@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -159,6 +159,14 @@ function createRamiRound(round: number, scores: { player1: number; player2: numb
   }
 }
 
+function createAwaleState() {
+  return {
+    pits: Array(12).fill(4),
+    scores: { player1: 0, player2: 0 },
+    lastMove: null,
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -190,6 +198,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { ...createYanivRound(1, { player1: 0, player2: 0 }), ...base }
     case 'rami':
       return { ...createRamiRound(1, { player1: 0, player2: 0 }), ...base }
+    case 'awale':
+      return { ...createAwaleState(), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -349,6 +359,16 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       const sc = state.scores as Record<string, unknown> | undefined
       if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
         return 'Invalid rami scores'
+      }
+      break
+    }
+    case 'awale': {
+      if (!Array.isArray(state.pits) || state.pits.length !== 12) {
+        return 'Awale pits must be an array of 12'
+      }
+      const sc = state.scores as Record<string, unknown> | undefined
+      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
+        return 'Invalid awale scores'
       }
       break
     }
