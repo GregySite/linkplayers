@@ -72,17 +72,17 @@ const Index = () => {
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="max-w-2xl mx-auto">
             <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-4 text-center font-medium">Choisir un jeu</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {GAMES.map((g) => (
                 <motion.button
                   key={g.type}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => setSelectedGame(g)}
-                  className="flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-colors text-center"
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-colors text-center"
                 >
                   <div className="text-primary">{g.icon}</div>
-                  <span className="text-sm font-medium text-foreground leading-tight">{g.title}</span>
+                  <span className="text-xs font-medium text-foreground leading-tight">{g.title}</span>
                 </motion.button>
               ))}
             </div>
