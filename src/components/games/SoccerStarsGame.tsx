@@ -182,7 +182,8 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
     const dist = Math.hypot(pullX, pullY);
     setDrag(null);
     if (dist < 8) return; // trop court, on annule
-    const power = Math.min(dist / (canvasSize.w * 0.4), 1);
+    const normalized = Math.min(dist / (canvasSize.w * 0.55), 1);
+    const power = normalized * normalized; // courbe non-linéaire : un petit geste tire vraiment doucement
     const { vx, vy } = flickVelocity(pullX, pullY, power);
     onFlick(drag.tokenId, vx, vy);
   };
