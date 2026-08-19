@@ -26,8 +26,8 @@ export const GameRulesDrawer = ({ gameType, gameTitle, variant = 'icon' }: GameR
             <HelpCircle className="w-5 h-5" />
           </button>
         ) : (
-          <Button variant="outline">
-            <HelpCircle className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" className="text-xs">
+            <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
             Comment jouer ?
           </Button>
         )}
