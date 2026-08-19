@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ const CardFace = ({ card, size = 'md' }: { card: YanivCard; size?: 'sm' | 'md' }
   </div>
 );
 
+const SLAP_WINDOW_MS = 3000;
+
 export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap }: YanivGameProps) => {
   const state = game.game_state as unknown as YanivState;
   const amPlayer1 = game.player1_id === playerId;
@@ -34,11 +36,33 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
 
   const [selected, setSelected] = useState<number[]>([]);
   const [ackedRound, setAckedRound] = useState<number | null>(null);
+  const [slapMsLeft, setSlapMsLeft] = useState(SLAP_WINDOW_MS);
+
+  // Calculé avant le retour anticipé pour que les Hooks restent dans un ordre stable
+  const pendingSlap = isMyTurn && !isFinished && !!state?.hands && canSlap(state, me);
 
   // Réinitialise la sélection dès que le plateau change
   useEffect(() => {
     setSelected([]);
   }, [game.updated_at]);
+
+  // Compte à rebours "réflexe" pour le slap : passé le délai, l'occasion est perdue
+  const onSkipSlapRef = useRef(onSkipSlap);
+  useEffect(() => { onSkipSlapRef.current = onSkipSlap; }, [onSkipSlap]);
+
+  useEffect(() => {
+    if (!pendingSlap) { setSlapMsLeft(SLAP_WINDOW_MS); return; }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, SLAP_WINDOW_MS - (Date.now() - start));
+      setSlapMsLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+        onSkipSlapRef.current();
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [pendingSlap]);
 
   if (!state?.hands) {
     return <p className="text-muted-foreground">Distribution en cours...</p>;
@@ -55,7 +79,6 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
   const selectedCards = selected.map(i => myHand[i]).filter(Boolean);
   const selectionValid = selectedCards.length > 0 && isValidDiscard(selectedCards);
   const myTotal = handPoints(myHand);
-  const pendingSlap = isMyTurn && !isFinished && canSlap(state, me);
   const canYaniv = isMyTurn && !isFinished && !pendingSlap && selected.length === 0 && canCallYaniv(myHand);
 
   const toggleCard = (index: number) => {
@@ -125,13 +148,21 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
       </div>
 
       {pendingSlap && (
-        <div className="flex justify-center gap-2">
-          <Button onClick={onSlap} className="font-semibold">
-            👋 Slaper !
-          </Button>
-          <Button onClick={onSkipSlap} variant="outline">
-            Passer
-          </Button>
+        <div className="space-y-2">
+          <div className="h-1.5 max-w-[12rem] mx-auto rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full bg-primary transition-[width] duration-100 ease-linear"
+              style={{ width: `${(slapMsLeft / SLAP_WINDOW_MS) * 100}%` }}
+            />
+          </div>
+          <div className="flex justify-center gap-2">
+            <Button onClick={onSlap} className="font-semibold">
+              👋 Slaper !
+            </Button>
+            <Button onClick={onSkipSlap} variant="outline">
+              Passer
+            </Button>
+          </div>
         </div>
       )}
 
