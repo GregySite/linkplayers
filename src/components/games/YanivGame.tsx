@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
+import { RoundTransitionOverlay } from '@/components/RoundTransitionOverlay';
 import {
   YanivCard, YanivState, SUIT_SYMBOLS, rankLabel, isRedSuit,
-  isValidDiscard, canCallYaniv, handPoints, YANIV_ELIMINATION,
+  isValidDiscard, canCallYaniv, handPoints, YANIV_ELIMINATION, canSlap,
 } from '@/lib/yanivUtils';
 
 interface YanivGameProps {
@@ -12,6 +13,8 @@ interface YanivGameProps {
   playerId: string;
   onPlay: (discardIndices: number[], draw: { from: 'deck' } | { from: 'discard'; cardId: string }) => void;
   onYaniv: () => void;
+  onSlap: () => void;
+  onSkipSlap: () => void;
 }
 
 const CardFace = ({ card, size = 'md' }: { card: YanivCard; size?: 'sm' | 'md' }) => (
@@ -21,7 +24,7 @@ const CardFace = ({ card, size = 'md' }: { card: YanivCard; size?: 'sm' | 'md' }
   </div>
 );
 
-export const YanivGame = ({ game, playerId, onPlay, onYaniv }: YanivGameProps) => {
+export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap }: YanivGameProps) => {
   const state = game.game_state as unknown as YanivState;
   const amPlayer1 = game.player1_id === playerId;
   const me = amPlayer1 ? 'player1' : 'player2';
@@ -30,6 +33,7 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv }: YanivGameProps) =
   const isFinished = game.status === 'finished' || !!game.winner;
 
   const [selected, setSelected] = useState<number[]>([]);
+  const [ackedRound, setAckedRound] = useState<number | null>(null);
 
   // Réinitialise la sélection dès que le plateau change
   useEffect(() => {
@@ -51,21 +55,22 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv }: YanivGameProps) =
   const selectedCards = selected.map(i => myHand[i]).filter(Boolean);
   const selectionValid = selectedCards.length > 0 && isValidDiscard(selectedCards);
   const myTotal = handPoints(myHand);
-  const canYaniv = isMyTurn && !isFinished && selected.length === 0 && canCallYaniv(myHand);
+  const pendingSlap = isMyTurn && !isFinished && canSlap(state, me);
+  const canYaniv = isMyTurn && !isFinished && !pendingSlap && selected.length === 0 && canCallYaniv(myHand);
 
   const toggleCard = (index: number) => {
-    if (!isMyTurn || isFinished) return;
+    if (!isMyTurn || isFinished || pendingSlap) return;
     setSelected(prev => (prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]));
   };
 
   const drawFromDeck = () => {
-    if (!selectionValid) return;
+    if (!selectionValid || pendingSlap) return;
     onPlay(selected, { from: 'deck' });
     setSelected([]);
   };
 
   const drawFromDiscard = (cardId: string) => {
-    if (!selectionValid) return;
+    if (!selectionValid || pendingSlap) return;
     onPlay(selected, { from: 'discard', cardId });
     setSelected([]);
   };
@@ -102,6 +107,10 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv }: YanivGameProps) =
               <span className="text-muted-foreground">Égalité !</span>
             )}
           </p>
+        ) : pendingSlap ? (
+          <p className="text-primary font-medium">
+            Tu as pioché une carte de même valeur que ta défausse — tu peux la slaper !
+          </p>
         ) : isMyTurn ? (
           <p className="text-primary font-medium">
             {selected.length === 0
@@ -114,6 +123,17 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv }: YanivGameProps) =
           <p className="text-muted-foreground">Au tour de l'adversaire...</p>
         )}
       </div>
+
+      {pendingSlap && (
+        <div className="flex justify-center gap-2">
+          <Button onClick={onSlap} className="font-semibold">
+            👋 Slaper !
+          </Button>
+          <Button onClick={onSkipSlap} variant="outline">
+            Passer
+          </Button>
+        </div>
+      )}
 
       {/* Main adverse (dos de cartes) */}
       <div className="flex justify-center gap-1.5 flex-wrap">
@@ -160,18 +180,21 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv }: YanivGameProps) =
         </div>
       </div>
 
-      {/* Talon (pioche) */}
-      {isMyTurn && selectionValid && (
-        <div className="flex justify-center">
-          <button
-            onClick={drawFromDeck}
-            className="w-14 h-20 rounded-lg border-2 border-primary/50 bg-muted flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-          >
-            <span className="text-xl">🂠</span>
-            <span className="text-[0.6rem]">Piocher</span>
-          </button>
-        </div>
-      )}
+      {/* Talon (pioche) — toujours affiché pour éviter que la main ne saute */}
+      <div className="flex justify-center">
+        <button
+          onClick={drawFromDeck}
+          disabled={!isMyTurn || !selectionValid || pendingSlap}
+          className={`w-14 h-20 rounded-lg border-2 flex flex-col items-center justify-center gap-1 transition-colors ${
+            isMyTurn && selectionValid
+              ? 'border-primary/50 bg-muted text-muted-foreground hover:border-primary hover:text-primary'
+              : 'border-border bg-muted/40 text-muted-foreground/40'
+          }`}
+        >
+          <span className="text-xl">🂠</span>
+          <span className="text-[0.6rem]">Piocher</span>
+        </button>
+      </div>
 
       {/* Ma main */}
       <div className="space-y-3">
@@ -213,20 +236,26 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv }: YanivGameProps) =
         )}
       </div>
 
-      {/* Résumé de la manche précédente */}
-      {summary && (
-        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-1">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground text-center mb-2">
-            {summary.assaf
-              ? `Assaf ! ${summary.caller === me ? "l'adversaire" : 'toi'} contrait avec une main plus basse`
-              : `Manche terminée — ${summary.caller === me ? 'tu as' : "l'adversaire a"} annoncé Yaniv`}
-          </p>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Toi : {summary.points[me]} pt(s) pris</span>
-            <span>Adv. : {summary.points[opponent]} pt(s) pris</span>
-          </div>
-        </div>
-      )}
+      {/* Transition entre les manches — bloque l'écran tant que non acquittée */}
+      <RoundTransitionOverlay
+        open={!!summary && state.round !== ackedRound}
+        title={summary?.assaf ? 'Assaf !' : 'Manche terminée !'}
+        onContinue={() => setAckedRound(state.round)}
+      >
+        {summary && (
+          <>
+            <p className="text-sm text-foreground">
+              {summary.assaf
+                ? `${summary.caller === me ? "L'adversaire" : 'Tu'} contrait avec une main plus basse`
+                : `${summary.caller === me ? 'Tu as' : "L'adversaire a"} annoncé Yaniv`}
+            </p>
+            <div className="flex justify-between text-sm text-muted-foreground px-2">
+              <span>Toi : +{summary.points[me]} pt(s)</span>
+              <span>Adv. : +{summary.points[opponent]} pt(s)</span>
+            </div>
+          </>
+        )}
+      </RoundTransitionOverlay>
     </motion.div>
   );
 };

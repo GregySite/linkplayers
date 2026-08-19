@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
+import { RoundTransitionOverlay } from '@/components/RoundTransitionOverlay';
 import {
   BeloteCard, BeloteState, SUIT_SYMBOLS, rankLabel, isRedSuit,
   legalPlays, BELOTE_ELIMINATION,
@@ -25,6 +27,7 @@ export const BeloteGame = ({ game, playerId, onPlay }: BeloteGameProps) => {
   const opponent = amPlayer1 ? 'player2' : 'player1';
   const isMyTurn = game.current_turn === playerId && game.status === 'playing';
   const isFinished = game.status === 'finished' || !!game.winner;
+  const [ackedRound, setAckedRound] = useState<number | null>(null);
 
   if (!state?.hands) {
     return <p className="text-muted-foreground">Distribution en cours...</p>;
@@ -136,17 +139,23 @@ export const BeloteGame = ({ game, playerId, onPlay }: BeloteGameProps) => {
         </div>
       </div>
 
-      {summary && (
-        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-1">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground text-center mb-1">
-            Fin de manche{summary.beloteRebelote ? ' — Belote-Rebelote annoncée !' : ''}
-          </p>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Toi : +{summary.points[me]} pt(s)</span>
-            <span>Adv. : +{summary.points[opponent]} pt(s)</span>
-          </div>
-        </div>
-      )}
+      <RoundTransitionOverlay
+        open={!!summary && state.round !== ackedRound}
+        title="Fin de manche !"
+        onContinue={() => setAckedRound(state.round)}
+      >
+        {summary && (
+          <>
+            <p className="text-sm text-foreground">
+              {summary.beloteRebelote ? 'Belote-Rebelote annoncée !' : 'Les plis sont comptés'}
+            </p>
+            <div className="flex justify-between text-sm text-muted-foreground px-2">
+              <span>Toi : +{summary.points[me]} pt(s)</span>
+              <span>Adv. : +{summary.points[opponent]} pt(s)</span>
+            </div>
+          </>
+        )}
+      </RoundTransitionOverlay>
     </motion.div>
   );
 };

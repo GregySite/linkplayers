@@ -245,6 +245,26 @@ export function playYanivMove(
 
 export const canCallYaniv = (hand: YanivCard[]) => handPoints(hand) <= YANIV_CALL_MAX;
 
+/** Slapdown : si la carte piochée au talon a la même valeur que celle qu'on vient de défausser,
+ * on peut la reposer immédiatement sur la défausse, gratuitement (sans repiocher). */
+export const canSlap = (state: YanivState, player: YanivPlayer): boolean => {
+  const lp = state.lastPlay;
+  if (!lp || lp.player !== player || lp.drawn !== 'deck' || !lp.drawnCard) return false;
+  const topDiscard = state.discardPile[state.discardPile.length - 1];
+  return !!topDiscard && topDiscard.id !== lp.drawnCard.id && topDiscard.rank === lp.drawnCard.rank;
+};
+
+export function playSlap(prev: YanivState, player: YanivPlayer): YanivPlayResult {
+  if (!canSlap(prev, player)) return { state: prev, nextPlayer: player, winner: null, finished: false };
+  const state = cloneState(prev);
+  const card = state.lastPlay!.drawnCard!;
+  state.hands[player] = state.hands[player].filter(c => c.id !== card.id);
+  state.discardPile.push(card);
+  state.pickable = pickableFrom([card]);
+  state.lastPlay = { ...state.lastPlay!, drawn: 'deck', drawnCard: null };
+  return { state, nextPlayer: opponentOf(player), winner: null, finished: false };
+}
+
 /** Annonce Yaniv : résout la manche, met à jour les scores et gère l'élimination. */
 export function callYaniv(prev: YanivState, player: YanivPlayer): YanivPlayResult {
   const state = cloneState(prev);

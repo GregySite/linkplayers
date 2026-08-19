@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
+import { RoundTransitionOverlay } from '@/components/RoundTransitionOverlay';
 import {
   RamiCard, RamiState, SUIT_SYMBOLS, rankLabel, isRedSuit,
   isValidMeld, handPoints, RAMI_ELIMINATION,
@@ -33,6 +34,7 @@ export const RamiGame = ({ game, playerId, onDraw, onLayMeld, onAddToMeld, onDis
 
   const [selected, setSelected] = useState<number[]>([]);
   const [selectedMeld, setSelectedMeld] = useState<string | null>(null);
+  const [ackedRound, setAckedRound] = useState<number | null>(null);
 
   useEffect(() => {
     setSelected([]);
@@ -215,18 +217,24 @@ export const RamiGame = ({ game, playerId, onDraw, onLayMeld, onAddToMeld, onDis
         </div>
       </div>
 
-      {summary && (
-        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-1">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground text-center mb-1">
-            {summary.winner === me ? 'Tu as terminé la manche' : "L'adversaire a terminé la manche"}
-            {summary.wentOutClean ? ' — Rami ! (bonus)' : ''}
-          </p>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Toi : +{summary.points[me]} pt(s)</span>
-            <span>Adv. : +{summary.points[opponent]} pt(s)</span>
-          </div>
-        </div>
-      )}
+      <RoundTransitionOverlay
+        open={!!summary && state.round !== ackedRound}
+        title="Manche terminée !"
+        onContinue={() => setAckedRound(state.round)}
+      >
+        {summary && (
+          <>
+            <p className="text-sm text-foreground">
+              {summary.winner === me ? 'Tu as terminé la manche' : "L'adversaire a terminé la manche"}
+              {summary.wentOutClean ? ' — Rami ! (bonus)' : ''}
+            </p>
+            <div className="flex justify-between text-sm text-muted-foreground px-2">
+              <span>Toi : +{summary.points[me]} pt(s)</span>
+              <span>Adv. : +{summary.points[opponent]} pt(s)</span>
+            </div>
+          </>
+        )}
+      </RoundTransitionOverlay>
     </motion.div>
   );
 };

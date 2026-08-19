@@ -32,7 +32,7 @@ import { isPenduWon, isPenduLost, normalizeWord, PENDU_MAX_ERRORS } from '@/lib/
 import { DamesMove, applyDamesMove, isDamesGameOver } from '@/lib/damesUtils';
 import { MemoryCard, isMemoryGameOver } from '@/lib/memoryUtils';
 import { ChkobbaState, playChkobbaCard, chkobbaAI } from '@/lib/chkobbaUtils';
-import { YanivState, playYanivMove, callYaniv, yanivAI } from '@/lib/yanivUtils';
+import { YanivState, playYanivMove, callYaniv, yanivAI, canSlap, playSlap } from '@/lib/yanivUtils';
 import {
   RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin, ramiAI, handIndicesForIds,
@@ -431,9 +431,11 @@ const SoloGamePage = () => {
       }
 
       const result = playYanivMove(current, 'player2', move.discardIndices!, move.draw!);
+      // L'IA slape toujours quand c'est possible (gratuit, toujours avantageux)
+      const finalState = canSlap(result.state, 'player2') ? playSlap(result.state, 'player2').state : result.state;
       const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
-      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
-      if (nextTurn === 'cpu') playYanivCpuTurn(result.state);
+      await updateGameState(finalState as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playYanivCpuTurn(finalState);
     }, 1000);
   };
 
@@ -444,13 +446,26 @@ const SoloGamePage = () => {
     const state = gameState as unknown as YanivState;
     const result = playYanivMove(state, 'player1', discardIndices, draw);
 
-    if (result.nextPlayer === 'player1') {
+    if (canSlap(result.state, 'player1')) {
       await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'human' });
       return;
     }
 
     await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
     playYanivCpuTurn(result.state);
+  };
+
+  const handleYanivSlap = async () => {
+    const state = gameState as unknown as YanivState;
+    const result = playSlap(state, 'player1');
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+    playYanivCpuTurn(result.state);
+  };
+
+  const handleYanivSkipSlap = async () => {
+    const state = gameState as unknown as YanivState;
+    await updateGameState(state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+    playYanivCpuTurn(state);
   };
 
   const handleYanivCall = async () => {
@@ -790,7 +805,17 @@ const SoloGamePage = () => {
       case 'pendu': return <PenduGame game={game} playerId={playerId} onMove={handlePenduGuess} onSetWord={() => {}} />;
       case 'dames': return <DamesGame game={game} playerId={playerId} onMove={handleDamesMove} />;
       case 'chkobba': return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
-      case 'yaniv': return <YanivGame game={game} playerId={playerId} onPlay={handleYanivPlay} onYaniv={handleYanivCall} />;
+      case 'yaniv':
+        return (
+          <YanivGame
+            game={game}
+            playerId={playerId}
+            onPlay={handleYanivPlay}
+            onYaniv={handleYanivCall}
+            onSlap={handleYanivSlap}
+            onSkipSlap={handleYanivSkipSlap}
+          />
+        );
       case 'rami':
         return (
           <RamiGame

@@ -33,7 +33,7 @@ import { isPenduWon, isPenduLost, normalizeWord, getWrongGuessCount, PENDU_MAX_E
 import { DamesMove, applyDamesMove, isDamesGameOver, countDamesPieces } from '@/lib/damesUtils';
 import { MemoryCard, isMemoryGameOver, checkMemoryMatch } from '@/lib/memoryUtils';
 import { ChkobbaState, playChkobbaCard } from '@/lib/chkobbaUtils';
-import { YanivState, playYanivMove, callYaniv } from '@/lib/yanivUtils';
+import { YanivState, playYanivMove, callYaniv, canSlap, playSlap } from '@/lib/yanivUtils';
 import {
   RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin,
@@ -68,6 +68,8 @@ const GamePage = () => {
   const navigate = useNavigate();
   const { game, loading, error, playerId, updateGameState, voteRematch, startRematch } = useGame(code);
   const rematchTriggered = useRef(false);
+  const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
+  const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
 
   // Check if both players want rematch — only player1 triggers
   useEffect(() => {
@@ -360,12 +362,33 @@ const GamePage = () => {
     const state = gameState as unknown as YanivState;
     const me = amPlayer1 ? 'player1' : 'player2';
     const result = playYanivMove(state, me, discardIndices, draw);
-    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
 
+    if (canSlap(result.state, me)) {
+      // On garde la main sur le joueur pour lui laisser la possibilité de slaper
+      await updateGameState(result.state as unknown as Record<string, unknown>, {});
+      return;
+    }
+
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
     await updateGameState(
       result.state as unknown as Record<string, unknown>,
       { current_turn: nextTurn }
     );
+  };
+
+  const handleYanivSlap = async () => {
+    const state = gameState as unknown as YanivState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playSlap(state, me);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+  };
+
+  const handleYanivSkipSlap = async () => {
+    const state = gameState as unknown as YanivState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const nextTurn = me === 'player1' ? game.player2_id : game.player1_id;
+    await updateGameState(state as unknown as Record<string, unknown>, { current_turn: nextTurn });
   };
 
   const handleYanivCall = async () => {
@@ -501,7 +524,7 @@ const GamePage = () => {
 
   const handleBackgammonRoll = async () => {
     const state = gameState as unknown as BackgammonState;
-    let next = bgRollDice(state);
+    const next = bgRollDice(state);
     const me = amPlayer1 ? 'player1' : 'player2';
     const skip = bgSkipIfNoMoves(next, me);
     if (skip) {
@@ -532,9 +555,6 @@ const GamePage = () => {
   };
 
   // ==================== FOOTBALL (SOCCER STARS) HANDLERS ====================
-
-  const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
-  const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
 
   const handleFootballFlick = (tokenId: string, vx: number, vy: number) => {
     const state = gameState as unknown as SoccerStarsState;
@@ -642,7 +662,16 @@ const GamePage = () => {
       case 'chkobba':
         return <ChkobbaGame game={game} playerId={playerId} onPlay={handleChkobbaPlay} />;
       case 'yaniv':
-        return <YanivGame game={game} playerId={playerId} onPlay={handleYanivPlay} onYaniv={handleYanivCall} />;
+        return (
+          <YanivGame
+            game={game}
+            playerId={playerId}
+            onPlay={handleYanivPlay}
+            onYaniv={handleYanivCall}
+            onSlap={handleYanivSlap}
+            onSkipSlap={handleYanivSkipSlap}
+          />
+        );
       case 'rami':
         return (
           <RamiGame
