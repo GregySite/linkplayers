@@ -134,12 +134,12 @@ export const GAME_RULES: Record<GameType, GameRules> = {
     winCondition: 'Premier à sortir ses 15 pions du plateau gagne.',
   },
   football: {
-    objective: 'Marque plus de buts que l\'adversaire grâce aux passes et au jeu de position.',
+    objective: 'Marque plus de buts que l\'adversaire, comme au air-hockey ou au carrom.',
     rules: [
-      'Chacun ton tour : jusqu\'à 3 actions dans l\'ordre de ton choix — 2 déplacements d\'une case + 1 action ballon.',
-      'Le porteur du ballon ne peut pas se déplacer (comme au handball) : il doit obligatoirement passer pour avancer.',
-      'Si tu es à 3 cases ou moins de la cage adverse, tu peux tirer. Si tu es adjacent au porteur adverse, tu peux le tacler pour lui reprendre le ballon (l\'adversaire est ensuite protégé un tour avant de pouvoir tacler en retour).',
+      'Chacun ton tour, glisse un de tes pions vers l\'arrière (comme un lance-pierre) puis relâche pour le tirer.',
+      'Le pion percute le ballon (ou d\'autres pions) selon sa trajectoire et sa force — rebondit sur les bords du terrain.',
+      'Vise juste : plus le geste est long, plus le tir est puissant.',
     ],
-    winCondition: 'Premier à 3 buts gagne (sinon, le plus de buts après 40 tours chacun).',
+    winCondition: 'Premier à 3 buts gagne.',
   },
 };

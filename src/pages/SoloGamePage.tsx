@@ -17,7 +17,7 @@ import { RamiGame } from '@/components/games/RamiGame';
 import { AwaleGame } from '@/components/games/AwaleGame';
 import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
-import { FootballGame } from '@/components/games/FootballGame';
+import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -44,9 +44,8 @@ import {
   skipIfNoMoves as bgSkipIfNoMoves,
 } from '@/lib/backgammonUtils';
 import {
-  FootballState, moveToken as fbMoveToken, playPass as fbPlayPass, playShoot as fbPlayShoot,
-  playTackle as fbPlayTackle, kickoffAfterGoal, endTurn as fbEndTurn, footballAI, TARGET_GOALS, MAX_TURNS, MAX_MOVES_PER_TURN,
-} from '@/lib/footballUtils';
+  SoccerStarsState, applyFlick, kickoffAfterGoal, soccerAI, FlickFrame,
+} from '@/lib/soccerStarsUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -56,7 +55,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Awalé', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Tactique',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Awalé', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars',
 };
 
 const SoloGamePage = () => {
@@ -717,110 +716,58 @@ const SoloGamePage = () => {
     }
   };
 
-  // ==================== FOOTBALL ====================
-  const finishFootballTurn = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
-    const turnsPlayed = state.turnsPlayed + 1;
-    const nextState = { ...fbEndTurn(state, actingPlayer), turnsPlayed };
-    const nextTurn = actingPlayer === 'player1' ? 'cpu' : 'human';
+  // ==================== FOOTBALL (SOCCER STARS) ====================
+  const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; actingPlayer: 'player1' | 'player2' } | null>(null);
+  const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
 
-    if (turnsPlayed >= MAX_TURNS) {
-      const winner = nextState.scores.player1 === nextState.scores.player2
-        ? null
-        : (nextState.scores.player1 > nextState.scores.player2 ? 'human' : 'cpu');
-      await updateGameState(nextState as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+  const resolveFootballTurn = async (
+    finalState: SoccerStarsState,
+    goalScored: 'player1' | 'player2' | null,
+    actingPlayer: 'player1' | 'player2',
+  ) => {
+    if (goalScored) {
+      const afterGoal = kickoffAfterGoal(finalState, goalScored);
+      if (afterGoal.scores[goalScored] >= 3) {
+        await updateGameState(afterGoal as unknown as Record<string, unknown>, {
+          status: 'finished' as GameStatus, winner: goalScored === 'player1' ? 'human' : 'cpu',
+        });
+        return;
+      }
+      const nextTurn = goalScored === 'player1' ? 'cpu' : 'human'; // le camp qui encaisse engage
+      await updateGameState(afterGoal as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playFootballCpuTurn(afterGoal);
       return;
     }
 
-    await updateGameState(nextState as unknown as Record<string, unknown>, { current_turn: nextTurn });
-    if (nextTurn === 'cpu') playFootballCpuTurn(nextState);
+    const nextTurn = actingPlayer === 'player1' ? 'cpu' : 'human';
+    await updateGameState(finalState as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    if (nextTurn === 'cpu') playFootballCpuTurn(finalState);
   };
 
-  const applyFootballState = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
-    if (state.movesUsed >= MAX_MOVES_PER_TURN && state.ballActionUsed) {
-      await finishFootballTurn(state, actingPlayer);
-    } else {
-      await updateGameState(state as unknown as Record<string, unknown>, {});
-    }
-  };
-
-  const playFootballCpuTurn = (current: FootballState) => {
-    scheduleCPU(async () => {
-      let state = current;
-      const plan = footballAI(state, 'player2');
-
-      for (const mv of plan.moves) {
-        const r = fbMoveToken(state, 'player2', mv.tokenId, mv.dr, mv.dc);
-        if (r.ok) state = r.state;
-      }
-
-      if (plan.ballAction?.type === 'tackle') {
-        const r = fbPlayTackle(state, 'player2');
-        if (r.ok) state = r.state;
-      } else if (plan.ballAction?.type === 'shoot') {
-        const r = fbPlayShoot(state, 'player2', plan.ballAction.dr!, plan.ballAction.dc!);
-        if (r.ok) {
-          state = r.state;
-          if (r.result === 'goal') {
-            const afterGoal = kickoffAfterGoal(state, 'player2');
-            if (afterGoal.scores.player2 >= TARGET_GOALS) {
-              await updateGameState(afterGoal as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'cpu' });
-              return;
-            }
-            await finishFootballTurn(afterGoal, 'player2');
-            return;
-          }
-        }
-      } else if (plan.ballAction?.type === 'pass') {
-        const r = fbPlayPass(state, 'player2', plan.ballAction.dr!, plan.ballAction.dc!);
-        if (r.ok) state = r.state;
-      }
-
-      await finishFootballTurn(state, 'player2');
+  const playFootballCpuTurn = (current: SoccerStarsState) => {
+    scheduleCPU(() => {
+      const move = soccerAI(current, 'player2');
+      const result = applyFlick(current, 'player2', move.tokenId, move.vx, move.vy);
+      if (!result) return;
+      footballPendingRef.current = { finalState: result.state, goalScored: result.goalScored, actingPlayer: 'player2' };
+      setFootballFrames(result.frames);
     }, 900);
   };
 
-  const handleFootballMove = async (tokenId: string, dr: number, dc: number) => {
-    const state = gameState as unknown as FootballState;
-    const result = fbMoveToken(state, 'player1', tokenId, dr, dc);
-    if (!result.ok) return;
-    await applyFootballState(result.state, 'player1');
+  const handleFootballFlick = (tokenId: string, vx: number, vy: number) => {
+    const state = gameState as unknown as SoccerStarsState;
+    const result = applyFlick(state, 'player1', tokenId, vx, vy);
+    if (!result) return;
+    footballPendingRef.current = { finalState: result.state, goalScored: result.goalScored, actingPlayer: 'player1' };
+    setFootballFrames(result.frames);
   };
 
-  const handleFootballPass = async (dr: number, dc: number) => {
-    const state = gameState as unknown as FootballState;
-    const result = fbPlayPass(state, 'player1', dr, dc);
-    if (!result.ok) return;
-    await applyFootballState(result.state, 'player1');
-  };
-
-  const handleFootballShoot = async (dr: number, dc: number) => {
-    const state = gameState as unknown as FootballState;
-    const result = fbPlayShoot(state, 'player1', dr, dc);
-    if (!result.ok) return;
-
-    if (result.result === 'goal') {
-      const afterGoal = kickoffAfterGoal(result.state, 'player1');
-      if (afterGoal.scores.player1 >= TARGET_GOALS) {
-        await updateGameState(afterGoal as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'human' });
-        return;
-      }
-      await finishFootballTurn(afterGoal, 'player1');
-      return;
-    }
-
-    await applyFootballState(result.state, 'player1');
-  };
-
-  const handleFootballTackle = async () => {
-    const state = gameState as unknown as FootballState;
-    const result = fbPlayTackle(state, 'player1');
-    if (!result.ok) return;
-    await applyFootballState(result.state, 'player1');
-  };
-
-  const handleFootballEndTurn = async () => {
-    const state = gameState as unknown as FootballState;
-    await finishFootballTurn(state, 'player1');
+  const handleFootballAnimationDone = async () => {
+    setFootballFrames(null);
+    const pending = footballPendingRef.current;
+    footballPendingRef.current = null;
+    if (!pending) return;
+    await resolveFootballTurn(pending.finalState, pending.goalScored, pending.actingPlayer);
   };
 
   // ==================== GAME OVER ====================
@@ -860,14 +807,12 @@ const SoloGamePage = () => {
       case 'backgammon': return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'football':
         return (
-          <FootballGame
+          <SoccerStarsGame
             game={game}
             playerId={playerId}
-            onMove={handleFootballMove}
-            onPass={handleFootballPass}
-            onShoot={handleFootballShoot}
-            onTackle={handleFootballTackle}
-            onEndTurn={handleFootballEndTurn}
+            onFlick={handleFootballFlick}
+            pendingFrames={footballFrames}
+            onAnimationDone={handleFootballAnimationDone}
           />
         );
       case 'memory': return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;

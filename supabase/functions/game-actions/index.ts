@@ -207,31 +207,26 @@ function createBackgammonState() {
 }
 
 function createFootballState() {
-  const HOME_COL: Record<string, number> = { player1: 2, player2: 6 }
-  const OWN_GOAL_COL: Record<string, number> = { player1: 0, player2: 8 }
-  const kickoffTeam = 'player1'
-  const other = 'player2'
+  const GOAL_CENTER_X = 30
+  const formation = (side: 'top' | 'bottom', prefix: string) => {
+    const baseY = side === 'top' ? 16 : 100 - 16
+    const midY = side === 'top' ? 30 : 100 - 30
+    return [
+      { id: `${prefix}-gk`, x: GOAL_CENTER_X, y: side === 'top' ? 8 : 92, vx: 0, vy: 0 },
+      { id: `${prefix}-d1`, x: GOAL_CENTER_X - 14, y: baseY, vx: 0, vy: 0 },
+      { id: `${prefix}-d2`, x: GOAL_CENTER_X + 14, y: baseY, vx: 0, vy: 0 },
+      { id: `${prefix}-a1`, x: GOAL_CENTER_X - 10, y: midY, vx: 0, vy: 0 },
+      { id: `${prefix}-a2`, x: GOAL_CENTER_X + 10, y: midY, vx: 0, vy: 0 },
+    ]
+  }
   return {
-    players: {
-      [kickoffTeam]: [
-        { id: `${kickoffTeam}-0`, row: 2, col: 4 },
-        { id: `${kickoffTeam}-1`, row: 0, col: 6 },
-        { id: `${kickoffTeam}-2`, row: 4, col: 6 },
-        { id: `${kickoffTeam}-gk`, row: 2, col: OWN_GOAL_COL[kickoffTeam] },
-      ],
-      [other]: [
-        { id: `${other}-0`, row: 2, col: HOME_COL[other] },
-        { id: `${other}-1`, row: 0, col: HOME_COL[other] },
-        { id: `${other}-2`, row: 4, col: HOME_COL[other] },
-        { id: `${other}-gk`, row: 2, col: OWN_GOAL_COL[other] },
-      ],
+    tokens: {
+      player1: formation('bottom', 'player1'),
+      player2: formation('top', 'player2'),
     },
-    ball: { row: 2, col: 4 },
+    ball: { x: GOAL_CENTER_X, y: 50, vx: 0, vy: 0 },
     scores: { player1: 0, player2: 0 },
     turnsPlayed: 0,
-    movesUsed: 0,
-    ballActionUsed: false,
-    tackleCooldown: null,
     lastAction: null,
   }
 }
@@ -476,12 +471,12 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       break
     }
     case 'football': {
-      const players = state.players as Record<string, unknown> | undefined
-      if (!players || !Array.isArray(players.player1) || !Array.isArray(players.player2)) {
-        return 'Football players must be arrays'
+      const tokens = state.tokens as Record<string, unknown> | undefined
+      if (!tokens || !Array.isArray(tokens.player1) || !Array.isArray(tokens.player2)) {
+        return 'Football tokens must be arrays'
       }
       const ball = state.ball as Record<string, unknown> | undefined
-      if (!ball || typeof ball.row !== 'number' || typeof ball.col !== 'number') {
+      if (!ball || typeof ball.x !== 'number' || typeof ball.y !== 'number') {
         return 'Invalid football ball position'
       }
       const sc = state.scores as Record<string, unknown> | undefined

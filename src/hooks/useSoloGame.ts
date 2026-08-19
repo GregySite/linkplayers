@@ -6,7 +6,7 @@ import { createRamiState } from '@/lib/ramiUtils';
 import { createAwaleState } from '@/lib/awaleUtils';
 import { createBeloteState } from '@/lib/beloteUtils';
 import { createBackgammonState } from '@/lib/backgammonUtils';
-import { createFootballState } from '@/lib/footballUtils';
+import { createSoccerStarsState } from '@/lib/soccerStarsUtils';
 
 /**
  * Hook that mimics useGame but runs entirely client-side for Solo mode.
@@ -32,7 +32,7 @@ export const useSoloGame = (gameType: GameType) => {
       case 'awale': return createAwaleState() as unknown as Record<string, unknown>;
       case 'belote': return createBeloteState() as unknown as Record<string, unknown>;
       case 'backgammon': return createBackgammonState() as unknown as Record<string, unknown>;
-      case 'football': return createFootballState() as unknown as Record<string, unknown>;
+      case 'football': return createSoccerStarsState() as unknown as Record<string, unknown>;
       case 'pendu': return { word: null, guessedLetters: [] };
       case 'dames': {
         const board: (string | null)[] = Array(100).fill(null);

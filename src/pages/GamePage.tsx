@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Users } from 'lucide-react';
 import { useGame, GameStatus } from '@/hooks/useGame';
@@ -18,7 +18,7 @@ import { RamiGame } from '@/components/games/RamiGame';
 import { AwaleGame } from '@/components/games/AwaleGame';
 import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
-import { FootballGame } from '@/components/games/FootballGame';
+import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -42,9 +42,8 @@ import { AwaleState, playAwaleMove } from '@/lib/awaleUtils';
 import { BeloteState, playBeloteCard } from '@/lib/beloteUtils';
 import { BackgammonState, rollDice as bgRollDice, playBackgammonMove, skipIfNoMoves as bgSkipIfNoMoves } from '@/lib/backgammonUtils';
 import {
-  FootballState, moveToken as fbMoveToken, playPass as fbPlayPass, playShoot as fbPlayShoot,
-  playTackle as fbPlayTackle, kickoffAfterGoal, endTurn as fbEndTurn, TARGET_GOALS, MAX_TURNS, MAX_MOVES_PER_TURN,
-} from '@/lib/footballUtils';
+  SoccerStarsState, applyFlick, kickoffAfterGoal, FlickFrame,
+} from '@/lib/soccerStarsUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -61,7 +60,7 @@ const GAME_TITLES: Record<string, string> = {
   awale: 'Awalé',
   belote: 'Belote',
   backgammon: 'Backgammon',
-  football: 'Foot Tactique',
+  football: 'Foot Stars',
 };
 
 const GamePage = () => {
@@ -532,81 +531,43 @@ const GamePage = () => {
     }
   };
 
-  // ==================== FOOTBALL HANDLERS ====================
+  // ==================== FOOTBALL (SOCCER STARS) HANDLERS ====================
 
-  const finishFootballTurn = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
-    const turnsPlayed = state.turnsPlayed + 1;
-    const nextState = { ...fbEndTurn(state, actingPlayer), turnsPlayed };
-    const nextTurnPlayer = actingPlayer === 'player1' ? 'player2' : 'player1';
-    const nextTurn = nextTurnPlayer === 'player1' ? game.player1_id : game.player2_id;
+  const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
+  const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
 
-    if (turnsPlayed >= MAX_TURNS) {
-      const winner = nextState.scores.player1 === nextState.scores.player2
-        ? null
-        : (nextState.scores.player1 > nextState.scores.player2 ? game.player1_id : game.player2_id);
-      await updateGameState(nextState as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
-    } else {
-      await updateGameState(nextState as unknown as Record<string, unknown>, { current_turn: nextTurn });
-    }
-  };
-
-  // Termine automatiquement le tour si les 2 déplacements ET l'action ballon ont été utilisés
-  const applyFootballState = async (state: FootballState, actingPlayer: 'player1' | 'player2') => {
-    if (state.movesUsed >= MAX_MOVES_PER_TURN && state.ballActionUsed) {
-      await finishFootballTurn(state, actingPlayer);
-    } else {
-      await updateGameState(state as unknown as Record<string, unknown>, {});
-    }
-  };
-
-  const handleFootballMove = async (tokenId: string, dr: number, dc: number) => {
-    const state = gameState as unknown as FootballState;
+  const handleFootballFlick = (tokenId: string, vx: number, vy: number) => {
+    const state = gameState as unknown as SoccerStarsState;
     const me = amPlayer1 ? 'player1' : 'player2';
-    const result = fbMoveToken(state, me, tokenId, dr, dc);
-    if (!result.ok) return;
-    await applyFootballState(result.state, me);
+    const result = applyFlick(state, me, tokenId, vx, vy);
+    if (!result) return;
+    footballPendingRef.current = { finalState: result.state, goalScored: result.goalScored, me };
+    setFootballFrames(result.frames);
   };
 
-  const handleFootballPass = async (dr: number, dc: number) => {
-    const state = gameState as unknown as FootballState;
-    const me = amPlayer1 ? 'player1' : 'player2';
-    const result = fbPlayPass(state, me, dr, dc);
-    if (!result.ok) return;
-    await applyFootballState(result.state, me);
-  };
+  const handleFootballAnimationDone = async () => {
+    setFootballFrames(null);
+    const pending = footballPendingRef.current;
+    footballPendingRef.current = null;
+    if (!pending) return;
+    const { finalState, goalScored, me } = pending;
 
-  const handleFootballShoot = async (dr: number, dc: number) => {
-    const state = gameState as unknown as FootballState;
-    const me = amPlayer1 ? 'player1' : 'player2';
-    const result = fbPlayShoot(state, me, dr, dc);
-    if (!result.ok) return;
-
-    if (result.result === 'goal') {
-      const afterGoal = kickoffAfterGoal(result.state, me);
-      if (afterGoal.scores[me] >= TARGET_GOALS) {
-        const winner = me === 'player1' ? game.player1_id : game.player2_id;
+    if (goalScored) {
+      const afterGoal = kickoffAfterGoal(finalState, goalScored);
+      if (afterGoal.scores[goalScored] >= 3) {
+        const winner = goalScored === 'player1' ? game.player1_id : game.player2_id;
         await updateGameState(afterGoal as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
         return;
       }
-      await finishFootballTurn(afterGoal, me);
+      const nextTurnPlayer = goalScored === 'player1' ? 'player2' : 'player1'; // qui encaisse engage
+      const nextTurn = nextTurnPlayer === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(afterGoal as unknown as Record<string, unknown>, { current_turn: nextTurn });
       return;
     }
 
-    await applyFootballState(result.state, me);
-  };
-
-  const handleFootballTackle = async () => {
-    const state = gameState as unknown as FootballState;
-    const me = amPlayer1 ? 'player1' : 'player2';
-    const result = fbPlayTackle(state, me);
-    if (!result.ok) return;
-    await applyFootballState(result.state, me);
-  };
-
-  const handleFootballEndTurn = async () => {
-    const state = gameState as unknown as FootballState;
-    const me = amPlayer1 ? 'player1' : 'player2';
-    await finishFootballTurn(state, me);
+    const nextTurnPlayer = me === 'player1' ? 'player2' : 'player1';
+    const nextTurn = nextTurnPlayer === 'player1' ? game.player1_id : game.player2_id;
+    await updateGameState(finalState as unknown as Record<string, unknown>, { current_turn: nextTurn });
   };
 
   // ==================== GAME OVER CHECK ====================
@@ -701,14 +662,12 @@ const GamePage = () => {
         return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'football':
         return (
-          <FootballGame
+          <SoccerStarsGame
             game={game}
             playerId={playerId}
-            onMove={handleFootballMove}
-            onPass={handleFootballPass}
-            onShoot={handleFootballShoot}
-            onTackle={handleFootballTackle}
-            onEndTurn={handleFootballEndTurn}
+            onFlick={handleFootballFlick}
+            pendingFrames={footballFrames}
+            onAnimationDone={handleFootballAnimationDone}
           />
         );
       case 'memory':
