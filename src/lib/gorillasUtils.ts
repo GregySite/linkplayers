@@ -25,10 +25,10 @@ export interface GorillaState {
 
 export const FIELD_WIDTH = 100;
 export const FIELD_HEIGHT = 56;
-export const GRAVITY = 0.26;
+export const GRAVITY = 0.17;
 export const MAX_VELOCITY = 45;
 /** Échelle vitesse→déplacement, calibrée pour qu'un tir à puissance max reste dans l'écran. */
-const VELOCITY_SCALE = 0.11;
+const VELOCITY_SCALE = 0.135;
 export const TARGET_WINS = 3;
 export const GORILLA_HIT_RADIUS = 2.6;
 export const SUN_POS = { x: FIELD_WIDTH / 2, y: 8, radius: 4 };
@@ -37,12 +37,20 @@ const opponentOf = (player: GorillaPlayer): GorillaPlayer => (player === 'player
 
 const NUM_BUILDINGS = 8;
 
+const GORILLA_LEFT_INDEX = 1;
+const GORILLA_RIGHT_INDEX = NUM_BUILDINGS - 2;
+
 const buildCityscape = (): Building[] => {
   const buildings: Building[] = [];
   const w = FIELD_WIDTH / NUM_BUILDINGS;
+
+  // Les immeubles porteurs des gorilles sont plutôt hauts, ceux du milieu plutôt bas :
+  // garantit qu'un tir par-dessus la ville reste toujours possible à portée raisonnable.
   for (let i = 0; i < NUM_BUILDINGS; i++) {
-    // Hauteurs variées mais jamais trop extrêmes, pour garder des tirs jouables
-    const height = 14 + Math.random() * 26;
+    const isGorillaTower = i === GORILLA_LEFT_INDEX || i === GORILLA_RIGHT_INDEX;
+    const height = isGorillaTower
+      ? 24 + Math.random() * 12   // 24 à 36
+      : 12 + Math.random() * 14;  // 12 à 26, toujours plus bas que les tours des gorilles
     buildings.push({ x: i * w, width: w, height, shade: Math.random() });
   }
   return buildings;
@@ -58,8 +66,8 @@ export const createGorillaState = (): GorillaState => {
   return {
     buildings,
     gorillas: {
-      player1: placeGorilla(buildings, 1),
-      player2: placeGorilla(buildings, NUM_BUILDINGS - 2),
+      player1: placeGorilla(buildings, GORILLA_LEFT_INDEX),
+      player2: placeGorilla(buildings, GORILLA_RIGHT_INDEX),
     },
     wind: Math.round((Math.random() * 2 - 1) * 10) / 10,
     scores: { player1: 0, player2: 0 },
@@ -152,8 +160,8 @@ export const throwBanana = (
     const nextState: GorillaState = {
       buildings,
       gorillas: {
-        player1: placeGorilla(buildings, 1),
-        player2: placeGorilla(buildings, NUM_BUILDINGS - 2),
+        player1: placeGorilla(buildings, GORILLA_LEFT_INDEX),
+        player2: placeGorilla(buildings, GORILLA_RIGHT_INDEX),
       },
       wind: Math.round((Math.random() * 2 - 1) * 10) / 10,
       scores,

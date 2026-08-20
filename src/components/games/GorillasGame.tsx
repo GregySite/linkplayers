@@ -130,21 +130,47 @@ export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAni
     });
 
     // Gorilles
-    const drawGorilla = (pos: { x: number; y: number }, color: string) => {
+    const drawGorilla = (pos: { x: number; y: number }, color: string, isMine: boolean) => {
       const p = toScreen(pos.x, pos.y);
-      const r = 2.6 * scale;
+      const r = 3.4 * scale;
+
+      // Corps
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.ellipse(p.x, p.y - r * 0.6, r * 0.9, r * 1.1, 0, 0, Math.PI * 2);
+      ctx.ellipse(p.x, p.y - r * 0.75, r * 0.85, r * 1.0, 0, 0, Math.PI * 2);
       ctx.fill();
-      // bras
+      // Bras levés (posture du gorille d'origine)
       ctx.beginPath();
-      ctx.ellipse(p.x - r * 0.9, p.y - r * 0.3, r * 0.35, r * 0.7, 0.3, 0, Math.PI * 2);
-      ctx.ellipse(p.x + r * 0.9, p.y - r * 0.3, r * 0.35, r * 0.7, -0.3, 0, Math.PI * 2);
+      ctx.ellipse(p.x - r * 0.95, p.y - r * 0.9, r * 0.32, r * 0.75, 0.35, 0, Math.PI * 2);
+      ctx.ellipse(p.x + r * 0.95, p.y - r * 0.9, r * 0.32, r * 0.75, -0.35, 0, Math.PI * 2);
       ctx.fill();
+      // Tête
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - r * 1.75, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      // Museau plus clair
+      ctx.fillStyle = 'rgba(255, 220, 190, 0.55)';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y - r * 1.55, r * 0.32, r * 0.24, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Yeux
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc(p.x - r * 0.2, p.y - r * 1.9, Math.max(1, r * 0.09), 0, Math.PI * 2);
+      ctx.arc(p.x + r * 0.2, p.y - r * 1.9, Math.max(1, r * 0.09), 0, Math.PI * 2);
+      ctx.fill();
+
+      // Liseré autour de MON gorille, pour le repérer d'un coup d'œil
+      if (isMine) {
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y - r * 1.1, r * 1.55, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     };
-    drawGorilla(state.gorillas.player1, '#7c4a2d');
-    drawGorilla(state.gorillas.player2, '#5a3a24');
+    drawGorilla(state.gorillas.player1, '#8b5a2b', me === 'player1');
+    drawGorilla(state.gorillas.player2, '#5a3a24', me === 'player2');
 
     // Vent (flèche)
     if (Math.abs(state.wind) > 0.05) {
@@ -186,7 +212,7 @@ export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAni
       ctx.arc(ep.x, ep.y, 6 * scale, 0, Math.PI * 2);
       ctx.fill();
     }
-  }, [state, canvasSize, scale, animPoint, explosion, sunHitAnim, toScreen]);
+  }, [state, canvasSize, scale, animPoint, explosion, sunHitAnim, toScreen, me]);
 
   if (!state?.buildings) {
     return <p className="text-muted-foreground">Construction de la ville...</p>;
