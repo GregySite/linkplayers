@@ -44,15 +44,32 @@ const buildCityscape = (): Building[] => {
   const buildings: Building[] = [];
   const w = FIELD_WIDTH / NUM_BUILDINGS;
 
-  // Les immeubles porteurs des gorilles sont plutôt hauts, ceux du milieu plutôt bas :
-  // garantit qu'un tir par-dessus la ville reste toujours possible à portée raisonnable.
+  // Hauteur des tours portant les gorilles : sert de référence pour le reste de la ville.
+  const leftTowerHeight = 20 + Math.random() * 10;   // 20 à 30
+  const rightTowerHeight = 20 + Math.random() * 10;
+  const lowestTower = Math.min(leftTowerHeight, rightTowerHeight);
+
   for (let i = 0; i < NUM_BUILDINGS; i++) {
-    const isGorillaTower = i === GORILLA_LEFT_INDEX || i === GORILLA_RIGHT_INDEX;
-    const height = isGorillaTower
-      ? 24 + Math.random() * 12   // 24 à 36
-      : 12 + Math.random() * 14;  // 12 à 26, toujours plus bas que les tours des gorilles
+    if (i === GORILLA_LEFT_INDEX) {
+      buildings.push({ x: i * w, width: w, height: leftTowerHeight, shade: Math.random() });
+      continue;
+    }
+    if (i === GORILLA_RIGHT_INDEX) {
+      buildings.push({ x: i * w, width: w, height: rightTowerHeight, shade: Math.random() });
+      continue;
+    }
+
+    const isBetweenGorillas = i > GORILLA_LEFT_INDEX && i < GORILLA_RIGHT_INDEX;
+    const height = isBetweenGorillas
+      // Vrai obstacle : dépasse toujours la ligne des gorilles, sans jamais monter
+      // assez haut pour rendre le tir en cloche impossible.
+      ? lowestTower + 1 + Math.random() * 7
+      // Immeubles de bordure : purement décoratifs
+      : 10 + Math.random() * 14;
+
     buildings.push({ x: i * w, width: w, height, shade: Math.random() });
   }
+
   return buildings;
 };
 
