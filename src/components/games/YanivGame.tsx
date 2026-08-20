@@ -118,8 +118,8 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
         </div>
       </div>
 
-      {/* Statut */}
-      <div className="text-center text-sm min-h-[1.5rem]">
+      {/* Statut — hauteur fixe sur 2 lignes pour que la main ne bouge jamais */}
+      <div className="text-center text-sm h-10 flex items-center justify-center px-2">
         {isFinished ? (
           <p className="text-lg font-bold">
             {game.winner === playerId ? (
@@ -132,7 +132,7 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
           </p>
         ) : pendingSlap ? (
           <p className="text-primary font-medium">
-            Tu as pioché une carte de même valeur que ta défausse — tu peux la slaper !
+            Même valeur que ta défausse — slape vite !
           </p>
         ) : isMyTurn ? (
           <p className="text-primary font-medium">
@@ -147,24 +147,27 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
         )}
       </div>
 
-      {pendingSlap && (
-        <div className="space-y-2">
-          <div className="h-1.5 max-w-[12rem] mx-auto rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-primary transition-[width] duration-100 ease-linear"
-              style={{ width: `${(slapMsLeft / SLAP_WINDOW_MS) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-center gap-2">
-            <Button onClick={onSlap} className="font-semibold">
-              👋 Slaper !
-            </Button>
-            <Button onClick={onSkipSlap} variant="outline">
-              Passer
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Zone slap — toujours réservée, pour que rien ne se décale à son apparition */}
+      <div className="h-16 flex flex-col justify-center gap-2">
+        {pendingSlap && (
+          <>
+            <div className="h-1.5 max-w-[12rem] mx-auto w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary transition-[width] duration-100 ease-linear"
+                style={{ width: `${(slapMsLeft / SLAP_WINDOW_MS) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-center gap-2">
+              <Button size="sm" onClick={onSlap} className="font-semibold">
+                👋 Slaper !
+              </Button>
+              <Button size="sm" onClick={onSkipSlap} variant="outline">
+                Passer
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Main adverse (dos de cartes) */}
       <div className="flex justify-center gap-1.5 flex-wrap">
@@ -258,13 +261,13 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
           </AnimatePresence>
         </div>
 
-        {canYaniv && (
-          <div className="flex justify-center">
+        <div className="h-10 flex justify-center items-center">
+          {canYaniv && (
             <Button onClick={onYaniv} variant="secondary" className="px-8">
               Annoncer Yaniv ! ({myTotal} pts)
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Transition entre les manches — bloque l'écran tant que non acquittée */}

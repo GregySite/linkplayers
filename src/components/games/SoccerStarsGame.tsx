@@ -33,7 +33,8 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 300, h: 500 });
-  const [drag, setDrag] = useState<{ tokenId: string; startX: number; startY: number; curX: number; curY: number } | null>(null);
+  const [drag, setDrag] = useState<{ tokenId: string; startX: number; startY: number; curX: number; curY: number; freeAim: boolean } | null>(null);
+  const [selectedToken, setSelectedToken] = useState<string | null>(null);
   const [animFrame, setAnimFrame] = useState<FlickFrame | null>(null);
 
   // Adapte la taille du canvas au conteneur, en gardant le ratio du terrain
@@ -47,6 +48,12 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  // Annule la sélection dès que le plateau change (nouveau tour, tir de l'adversaire...)
+  useEffect(() => {
+    setSelectedToken(null);
+    setDrag(null);
+  }, [game.updated_at]);
 
   const scale = canvasSize.w / FIELD_WIDTH;
   const toScreen = useCallback((x: number, y: number) => ({ x: x * scale, y: y * scale }), [scale]);
@@ -128,6 +135,19 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    // Halo sur le pion sélectionné (permet de viser depuis n'importe où)
+    if (selectedToken && !drag) {
+      const token = state.tokens[me].find(t => t.id === selectedToken);
+      if (token) {
+        const p = toScreen(token.x, token.y);
+        ctx.strokeStyle = '#ffffffcc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, TOKEN_RADIUS * scale * 1.4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
     // Ligne de visée pendant le drag
     if (drag) {
       const token = state.tokens[me].find(t => t.id === drag.tokenId);
@@ -146,7 +166,7 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
         ctx.setLineDash([]);
       }
     }
-  }, [state, animFrame, canvasSize, scale, drag, me, toScreen]);
+  }, [state, animFrame, canvasSize, scale, drag, me, toScreen, selectedToken]);
 
   if (!state?.tokens) {
     return <p className="text-muted-foreground">Mise en place du terrain...</p>;
@@ -163,10 +183,25 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
     if (!canInteract) return;
     const pos = getPointerField(e);
     const token = state.tokens[me].find(t => Math.hypot(t.x - pos.x, t.y - pos.y) < TOKEN_RADIUS * 1.8);
-    if (!token) return;
-    const screenPos = toScreen(token.x, token.y);
-    setDrag({ tokenId: token.id, startX: screenPos.x, startY: screenPos.y, curX: screenPos.x, curY: screenPos.y });
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    if (token) {
+      // Geste direct sur le pion : on tire depuis sa position
+      setSelectedToken(token.id);
+      const screenPos = toScreen(token.x, token.y);
+      setDrag({ tokenId: token.id, startX: screenPos.x, startY: screenPos.y, curX: screenPos.x, curY: screenPos.y, freeAim: false });
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
+
+    // Pion déjà sélectionné : on peut viser depuis n'importe où sur le terrain.
+    // Indispensable quand le pion est collé à un bord et qu'il n'y a plus de place pour tirer.
+    if (selectedToken && state.tokens[me].some(t => t.id === selectedToken)) {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      setDrag({ tokenId: selectedToken, startX: px, startY: py, curX: px, curY: py, freeAim: true });
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -185,6 +220,7 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
     const normalized = Math.min(dist / (canvasSize.w * 0.55), 1);
     const power = normalized * normalized; // courbe non-linéaire : un petit geste tire vraiment doucement
     const { vx, vy } = flickVelocity(pullX, pullY, power);
+    setSelectedToken(null);
     onFlick(drag.tokenId, vx, vy);
   };
 
@@ -210,7 +246,7 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
               : <span className="text-muted-foreground">Égalité !</span>}
           </p>
         ) : isMyTurn ? (
-          <p className="text-primary font-medium">{pendingFrames ? 'Tir en cours...' : 'Glisse un de tes pions vers l\'arrière puis relâche pour tirer'}</p>
+          <p className="text-primary font-medium">{pendingFrames ? 'Tir en cours...' : selectedToken ? 'Glisse depuis n\'importe où pour viser, puis relâche' : 'Glisse un pion vers l\'arrière, ou tape-le pour viser de loin'}</p>
         ) : (
           <p className="text-muted-foreground">Au tour de l'adversaire...</p>
         )}
