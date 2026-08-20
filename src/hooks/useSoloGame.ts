@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Game, GameType, GameStatus } from '@/hooks/useGame';
 import { createInitialGameState } from '@/lib/initialGameState';
+import { GAMES_WITH_OWN_SCORE } from '@/hooks/useLocalGame';
 
 /**
  * Hook that mimics useGame but runs entirely client-side for Solo mode.
@@ -46,10 +47,17 @@ export const useSoloGame = (gameType: GameType) => {
 
   const resetGame = useCallback(() => {
     const currentScores = (game.game_state as Record<string, unknown>).scores as { player1: number; player2: number } | undefined;
-    const newScores = currentScores ? { ...currentScores } : { player1: 0, player2: 0 };
-    
-    if (game.winner === humanId) newScores.player1 += 1;
-    else if (game.winner === cpuId) newScores.player2 += 1;
+    // Pour les jeux qui tiennent eux-mêmes le score de la partie (manches, buts,
+    // points...), « Rejouer » doit repartir de zéro, sinon le comptage s'emballe.
+    const ownScore = GAMES_WITH_OWN_SCORE.includes(gameType);
+    const newScores = ownScore
+      ? { player1: 0, player2: 0 }
+      : (currentScores ? { ...currentScores } : { player1: 0, player2: 0 });
+
+    if (!ownScore) {
+      if (game.winner === humanId) newScores.player1 += 1;
+      else if (game.winner === cpuId) newScores.player2 += 1;
+    }
 
     setGame({
       id: 'solo',
@@ -60,7 +68,7 @@ export const useSoloGame = (gameType: GameType) => {
       player2_id: p2,
       current_turn: humanId,
       winner: null,
-      game_state: { ...getInitialState(), scores: newScores },
+      game_state: ownScore ? getInitialState() : { ...getInitialState(), scores: newScores },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

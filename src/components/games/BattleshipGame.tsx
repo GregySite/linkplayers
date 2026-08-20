@@ -43,8 +43,15 @@ export const BattleshipGame = ({ game, playerId, onPlaceShips, onShoot }: Battle
   useEffect(() => {
     if (myGrid && myGrid.length > 0) {
       setPlacementGrid(myGrid);
+    } else {
+      // Grille vide : c'est un nouveau joueur qui doit placer (mode local, où les
+      // deux joueurs se succèdent sur le même appareil). On repart d'une grille
+      // neuve, sinon le placement du joueur précédent resterait affiché.
+      setPlacementGrid(createEmptyGrid());
+      setCurrentShipIndex(0);
+      setHoverCells([]);
     }
-  }, [myGrid]);
+  }, [myGrid, playerId]);
 
   const currentShip = SHIPS[currentShipIndex];
   const allShipsPlaced = currentShipIndex >= SHIPS.length;

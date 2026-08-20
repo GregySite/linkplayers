@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { DamesPiece, DamesMove, getAllMoves, countDamesPieces } from '@/lib/damesUtils';
@@ -34,6 +34,10 @@ const PieceComponent = ({ piece, selected, onClick }: { piece: DamesPiece; selec
 
 export const DamesGame = ({ game, playerId, onMove }: DamesGameProps) => {
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null);
+
+  // Annule la sélection quand le plateau change (indispensable en local, où le
+  // joueur suivant hériterait sinon de la pièce surlignée par le précédent).
+  useEffect(() => { setSelectedPiece(null); }, [game.updated_at]);
 
   const gameState = game.game_state as Record<string, unknown>;
   const board = (gameState.board as DamesPiece[]) || [];

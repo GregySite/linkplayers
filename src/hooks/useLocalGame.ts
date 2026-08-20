@@ -15,6 +15,15 @@ export const needsPrivacyScreen = (gameType: GameType): boolean => HIDDEN_INFO_G
  * `playerId` suit le tour courant : le composant de jeu croit donc toujours être
  * "le joueur dont c'est le tour", sans avoir besoin d'être modifié.
  */
+/**
+ * Jeux qui tiennent eux-mêmes le score de la partie dans game_state.scores
+ * (manches gagnées, buts, points...). Pour ceux-là, « Rejouer » doit repartir
+ * de zéro : réutiliser puis incrémenter ce score fausserait le comptage.
+ */
+export const GAMES_WITH_OWN_SCORE: GameType[] = [
+  'gorillas', 'football', 'yaniv', 'rami', 'belote', 'chkobba', 'awale', 'rps', 'memory',
+];
+
 export const useLocalGame = (gameType: GameType) => {
   const makeGame = (scores?: { player1: number; player2: number }): Game => ({
     id: 'local',
@@ -46,6 +55,12 @@ export const useLocalGame = (gameType: GameType) => {
   }, [game]);
 
   const resetGame = useCallback(() => {
+    if (GAMES_WITH_OWN_SCORE.includes(gameType)) {
+      // Le score fait partie de la partie elle-même : on repart d'une partie neuve.
+      setGame(makeGame());
+      return;
+    }
+    // Jeux sans score interne : on tient le compte des manches gagnées.
     const currentScores = (game.game_state as Record<string, unknown>).scores as { player1: number; player2: number } | undefined;
     const newScores = currentScores ? { ...currentScores } : { player1: 0, player2: 0 };
     if (game.winner === LOCAL_P1) newScores.player1 += 1;

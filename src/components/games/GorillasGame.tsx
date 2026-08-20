@@ -27,8 +27,14 @@ export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAni
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 320, h: 180 });
-  const [angle, setAngle] = useState(45);
-  const [velocity, setVelocity] = useState(25);
+  // Réglages mémorisés par joueur : chacun retrouve son dernier tir, comme dans
+  // l'original (et en local, le joueur 2 n'hérite pas des réglages du joueur 1).
+  const [aimByPlayer, setAimByPlayer] = useState<Record<string, { angle: number; velocity: number }>>({});
+  const aim = aimByPlayer[me] ?? { angle: 45, velocity: 25 };
+  const angle = aim.angle;
+  const velocity = aim.velocity;
+  const setAngle = (v: number) => setAimByPlayer(prev => ({ ...prev, [me]: { ...(prev[me] ?? { angle: 45, velocity: 25 }), angle: v } }));
+  const setVelocity = (v: number) => setAimByPlayer(prev => ({ ...prev, [me]: { ...(prev[me] ?? { angle: 45, velocity: 25 }), velocity: v } }));
   const [animPoint, setAnimPoint] = useState<{ x: number; y: number } | null>(null);
   const [sunHitAnim, setSunHitAnim] = useState(false);
   const [explosion, setExplosion] = useState<{ x: number; y: number } | null>(null);
