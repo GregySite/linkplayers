@@ -219,7 +219,7 @@ export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAni
 
       // Liseré autour de MON gorille, pour le repérer d'un coup d'œil
       if (isMine) {
-        ctx.strokeStyle = '#f97316';
+        ctx.strokeStyle = '#2662ed';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(p.x, p.y - r * 1.1, r * 1.55, 0, Math.PI * 2);

@@ -15,7 +15,7 @@ interface SoccerStarsGameProps {
 }
 
 const COLORS = {
-  player1: '#f97316', // primary-ish orange
+  player1: '#2662ed', // bleu principal du site
   player2: '#1f2937', // foreground-ish dark
   ball: '#ffffff',
   field: '#14532d',
@@ -265,7 +265,7 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
         />
       </div>
       <p className="text-center text-[0.65rem] text-muted-foreground">
-        Comme au air-hockey : tes pions ({me === 'player1' ? 'orange' : 'foncés'}) percutent le ballon selon leur trajectoire.
+        Comme au air-hockey : tes pions ({me === 'player1' ? 'bleus' : 'foncés'}) percutent le ballon selon leur trajectoire.
       </p>
     </div>
   );
