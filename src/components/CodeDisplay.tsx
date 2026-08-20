@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface CodeDisplayProps {
   code: string;
@@ -10,6 +11,10 @@ export const CodeDisplay = ({ code }: CodeDisplayProps) => {
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
+  // Utilise le domaine réellement servi, pour que le lien reste valable
+  // quel que soit l'hébergement (preview Lovable, domaine perso...).
+  const gameUrl = `${window.location.origin}/game/${code}`;
+
   const copyCode = async () => {
     await navigator.clipboard.writeText(code);
     setCopied(true);
@@ -17,9 +22,30 @@ export const CodeDisplay = ({ code }: CodeDisplayProps) => {
   };
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(`https://linkplayers.lovable.app/game/${code}`);
+    await navigator.clipboard.writeText(gameUrl);
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const share = async () => {
+    const shareData = {
+      title: 'Rejoins ma partie !',
+      text: `Rejoins-moi sur linkplayers avec le code ${code} :`,
+      url: gameUrl,
+    };
+
+    // navigator.share ouvre le menu de partage natif (WhatsApp, SMS...).
+    // Absent sur la plupart des navigateurs de bureau : on retombe sur la copie.
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // L'utilisateur a annulé le partage : on ne fait rien de plus.
+        return;
+      }
+    }
+    await copyLink();
   };
 
   return (
@@ -47,13 +73,16 @@ export const CodeDisplay = ({ code }: CodeDisplayProps) => {
           )}
         </button>
       </div>
+
+      <div className="mt-4 flex justify-center">
+        <Button onClick={share} size="lg" className="font-semibold px-8">
+          <Share2 className="w-5 h-5 mr-2" />
+          Partager l'invitation
+        </Button>
+      </div>
+
       <div className="mt-3 flex items-center justify-center gap-2">
-        <a
-          href={`https://linkplayers.lovable.app/game/${code}`}
-          className="text-xs text-muted-foreground hover:text-primary transition-colors break-all"
-        >
-          https://linkplayers.lovable.app/game/{code}
-        </a>
+        <span className="text-xs text-muted-foreground break-all">{gameUrl}</span>
         <button
           onClick={copyLink}
           className="p-1 hover:bg-card rounded transition-colors flex-shrink-0"

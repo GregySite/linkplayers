@@ -62,7 +62,7 @@ const Index = () => {
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">amis</span>
             </h1>
             <p className="text-muted-foreground text-lg max-w-md mx-auto">
-              Des jeux classiques en temps réel. Crée une partie, partage le code, et c'est parti !
+              15 jeux de cartes, de plateau et d'adresse. À distance, sur le même téléphone, ou contre l'ordinateur — sans inscription.
             </p>
           </motion.div>
 
@@ -82,6 +82,7 @@ const Index = () => {
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => setSelectedGame(g)}
+                  aria-label={`${g.title} — ${g.description}`}
                   className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-colors text-center"
                 >
                   <div className="text-primary">{g.icon}</div>
