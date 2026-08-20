@@ -25,8 +25,10 @@ export interface GorillaState {
 
 export const FIELD_WIDTH = 100;
 export const FIELD_HEIGHT = 56;
-export const GRAVITY = 0.22;
+export const GRAVITY = 0.26;
 export const MAX_VELOCITY = 45;
+/** Échelle vitesse→déplacement, calibrée pour qu'un tir à puissance max reste dans l'écran. */
+const VELOCITY_SCALE = 0.11;
 export const TARGET_WINS = 3;
 export const GORILLA_HIT_RADIUS = 2.6;
 export const SUN_POS = { x: FIELD_WIDTH / 2, y: 8, radius: 4 };
@@ -93,8 +95,8 @@ export const throwBanana = (
 
   let x = shooter.x;
   let y = shooter.y - 2.5; // point de lâcher, au-dessus de la tête
-  let vx = Math.cos(angleRad) * speed * dir * 0.14;
-  let vy = -Math.sin(angleRad) * speed * 0.14;
+  let vx = Math.cos(angleRad) * speed * dir * VELOCITY_SCALE;
+  let vy = -Math.sin(angleRad) * speed * VELOCITY_SCALE;
 
   const trajectory: { x: number; y: number }[] = [{ x, y }];
   let result: ThrowResult['result'] = 'miss';
@@ -165,18 +167,17 @@ export const throwBanana = (
 };
 
 // ---------------------------------------------------------------------------
-// IA : cherche le meilleur angle/vitesse par essais simulés (celui qui passe le plus près)
+// IA : cherche un bon tir par balayage, avec imprécision volontaire pour ne pas
+// rejouer exactement le même coup à chaque fois (et laisser sa chance au joueur).
 
 export const gorillaAI = (state: GorillaState, player: GorillaPlayer): { angle: number; velocity: number } => {
   const opponent = opponentOf(player);
   const target = state.gorillas[opponent];
-  const shooter = state.gorillas[player];
 
-  let best = { angle: 45, velocity: 25 };
-  let bestDist = Infinity;
+  const candidates: { angle: number; velocity: number; dist: number }[] = [];
 
-  for (let angle = 15; angle <= 75; angle += 5) {
-    for (let velocity = 10; velocity <= MAX_VELOCITY; velocity += 3) {
+  for (let angle = 20; angle <= 75; angle += 5) {
+    for (let velocity = 12; velocity <= MAX_VELOCITY; velocity += 3) {
       const attempt = throwBanana(state, player, angle, velocity);
       const traj = attempt.state.lastShot?.trajectory ?? [];
       let minDist = Infinity;
@@ -184,10 +185,22 @@ export const gorillaAI = (state: GorillaState, player: GorillaPlayer): { angle: 
         const d = Math.hypot(p.x - target.x, p.y - target.y);
         if (d < minDist) minDist = d;
       }
-      if (attempt.result === 'hit') { void shooter; return { angle, velocity }; }
-      if (minDist < bestDist) { bestDist = minDist; best = { angle, velocity }; }
+      candidates.push({ angle, velocity, dist: attempt.result === 'hit' ? 0 : minDist });
     }
   }
 
-  return best;
+  candidates.sort((a, b) => a.dist - b.dist);
+  // Pioche parmi les meilleurs tirs plutôt que systématiquement le tout meilleur,
+  // pour varier les trajectoires d'une manche à l'autre.
+  const pool = candidates.slice(0, 6);
+  const pick = pool[Math.floor(Math.random() * pool.length)] ?? candidates[0];
+
+  // Petite erreur de visée : rend l'IA battable et ses tirs moins robotiques
+  const angleJitter = (Math.random() * 2 - 1) * 4;
+  const velocityJitter = (Math.random() * 2 - 1) * 2.5;
+
+  return {
+    angle: Math.max(5, Math.min(85, Math.round(pick.angle + angleJitter))),
+    velocity: Math.max(5, Math.min(MAX_VELOCITY, Math.round(pick.velocity + velocityJitter))),
+  };
 };

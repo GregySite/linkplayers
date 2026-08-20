@@ -162,10 +162,22 @@ export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAni
     // Trajectoire (points déjà parcourus pendant l'animation)
     if (animPoint) {
       const bp = toScreen(animPoint.x, animPoint.y);
-      ctx.fillStyle = '#fde047';
-      ctx.beginPath();
-      ctx.arc(bp.x, bp.y, Math.max(2, 1.6 * scale), 0, Math.PI * 2);
-      ctx.fill();
+      const r = Math.max(2, 1.6 * scale);
+      if (bp.y < r) {
+        // Banane au-dessus du champ visible : indicateur en haut de l'écran (comme l'original)
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.moveTo(bp.x, 2);
+        ctx.lineTo(bp.x - r, 2 + r * 1.4);
+        ctx.lineTo(bp.x + r, 2 + r * 1.4);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     if (explosion) {
       const ep = toScreen(explosion.x, explosion.y);
