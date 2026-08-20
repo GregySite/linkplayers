@@ -107,13 +107,13 @@ export const GAME_RULES: Record<GameType, GameRules> = {
     winCondition: 'Premier à vider sa main. Le perdant encaisse les points des cartes restantes ; élimination à 151 points.',
   },
   awale: {
-    objective: 'Capture plus de la moitié des 48 graines du plateau.',
+    objective: 'Fais tomber le plus de graines possible dans ton réservoir.',
     rules: [
-      'Choisis une de tes cases et sème une graine dans chaque case suivante (dans un seul sens, autour du plateau).',
-      'Si ta dernière graine tombe dans une case adverse qui contient alors 2 ou 3 graines, tu la captures.',
-      'La capture se poursuit vers l\'arrière tant que les cases adverses précédentes ont aussi 2 ou 3 graines.',
+      'Choisis un de tes trous et sème une graine dans chaque case suivante (y compris ton réservoir, jamais celui de l\'adversaire).',
+      'Si ta dernière graine tombe dans un de tes trous vides, tu captures cette graine + toutes celles du trou juste en face, chez l\'adversaire.',
+      'Si ta dernière graine tombe dans ton réservoir, tu rejoues immédiatement !',
     ],
-    winCondition: 'Premier à capturer 25 graines ou plus gagne (48 graines au total sur le plateau).',
+    winCondition: 'Premier à 25 graines dans son réservoir gagne (48 graines au total sur le plateau).',
   },
   belote: {
     objective: 'Remporte le plus de points possible sur les plis, avec un atout tiré au hasard chaque manche.',

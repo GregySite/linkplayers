@@ -14,7 +14,7 @@ import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
 import { RamiGame } from '@/components/games/RamiGame';
-import { AwaleGame } from '@/components/games/AwaleGame';
+import { KalahGame } from '@/components/games/KalahGame';
 import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
@@ -37,7 +37,7 @@ import {
   RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin, ramiAI, handIndicesForIds,
 } from '@/lib/ramiUtils';
-import { AwaleState, playAwaleMove, awaleAI } from '@/lib/awaleUtils';
+import { KalahState, playKalahMove, kalahAI } from '@/lib/kalahUtils';
 import { BeloteState, playBeloteCard, beloteAI } from '@/lib/beloteUtils';
 import {
   BackgammonState, rollDice as bgRollDice, playBackgammonMove, backgammonAI,
@@ -55,7 +55,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Awalé', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Kalah', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars',
 };
 
 const SoloGamePage = () => {
@@ -594,13 +594,13 @@ const SoloGamePage = () => {
     if (nextTurn === 'cpu') playRamiCpuTurn(result.state);
   };
 
-  // ==================== AWALÉ ====================
-  const playAwaleCpuTurn = (current: AwaleState) => {
+  // ==================== KALAH ====================
+  const playKalahCpuTurn = (current: KalahState) => {
     scheduleCPU(async () => {
-      const move = awaleAI(current, 'player2');
+      const move = kalahAI(current, 'player2');
       if (move === -1) return; // ne devrait pas arriver, sécurité
 
-      const result = playAwaleMove(current, 'player2', move);
+      const result = playKalahMove(current, 'player2', move);
 
       if (result.finished) {
         await updateGameState(result.state as unknown as Record<string, unknown>, {
@@ -612,13 +612,13 @@ const SoloGamePage = () => {
 
       const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
       await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
-      if (nextTurn === 'cpu') playAwaleCpuTurn(result.state);
+      if (nextTurn === 'cpu') playKalahCpuTurn(result.state);
     }, 1000);
   };
 
-  const handleAwalePlay = async (pitIndex: number) => {
-    const state = gameState as unknown as AwaleState;
-    const result = playAwaleMove(state, 'player1', pitIndex);
+  const handleKalahPlay = async (pitIndex: number) => {
+    const state = gameState as unknown as KalahState;
+    const result = playKalahMove(state, 'player1', pitIndex);
 
     if (result.finished) {
       await updateGameState(result.state as unknown as Record<string, unknown>, {
@@ -630,7 +630,7 @@ const SoloGamePage = () => {
 
     const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
     await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
-    if (nextTurn === 'cpu') playAwaleCpuTurn(result.state);
+    if (nextTurn === 'cpu') playKalahCpuTurn(result.state);
   };
 
   // ==================== BELOTE ====================
@@ -827,7 +827,7 @@ const SoloGamePage = () => {
             onDiscard={handleRamiDiscard}
           />
         );
-      case 'awale': return <AwaleGame game={game} playerId={playerId} onPlay={handleAwalePlay} />;
+      case 'awale': return <KalahGame game={game} playerId={playerId} onPlay={handleKalahPlay} />;
       case 'belote': return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
       case 'backgammon': return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'football':

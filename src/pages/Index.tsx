@@ -20,7 +20,7 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'memory', title: 'Memory', description: 'Retourne les cartes et trouve les paires avant ton adversaire !', icon: <Layers className="w-6 h-6" /> },
   { type: 'yaniv', title: 'Yaniv', description: 'Défausse tes cartes, annonce Yaniv à 7 points ou moins... mais gare à l\'Assaf !', icon: <Diamond className="w-6 h-6" /> },
   { type: 'rami', title: 'Rami', description: 'Forme des brelans et des suites, pose tes combinaisons et vide ta main avant l\'adversaire !', icon: <Club className="w-6 h-6" /> },
-  { type: 'awale', title: 'Awalé', description: 'Jeu de plateau africain traditionnel. Sème tes graines et capture celles de l\'adversaire !', icon: <CircleDot className="w-6 h-6" /> },
+  { type: 'awale', title: 'Kalah', description: 'Jeu de plateau simple et rapide. Sème tes graines, tombe sur une case vide pour capturer en face !', icon: <CircleDot className="w-6 h-6" /> },
   { type: 'belote', title: 'Belote', description: 'Le classique des cartes françaises. Atout, plis, belote-rebelote et dix de der !', icon: <Heart className="w-6 h-6" /> },
   { type: 'backgammon', title: 'Backgammon', description: 'Le grand classique du plateau et des dés. Rentre tes pions à la maison avant l\'adversaire !', icon: <Dice5 className="w-6 h-6" /> },
   { type: 'football', title: 'Foot Stars', description: 'Vise et tire tes pions comme au air-hockey pour envoyer le ballon au fond des filets ! Premier à 3 buts gagne.', icon: <Goal className="w-6 h-6" /> },

@@ -159,10 +159,12 @@ function createRamiRound(round: number, scores: { player1: number; player2: numb
   }
 }
 
-function createAwaleState() {
+function createKalahState() {
+  const pits = Array(14).fill(4)
+  pits[6] = 0 // réservoir joueur 1
+  pits[13] = 0 // réservoir joueur 2
   return {
-    pits: Array(12).fill(4),
-    scores: { player1: 0, player2: 0 },
+    pits,
     lastMove: null,
   }
 }
@@ -263,7 +265,7 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
     case 'rami':
       return { ...createRamiRound(1, { player1: 0, player2: 0 }), ...base }
     case 'awale':
-      return { ...createAwaleState(), ...base }
+      return { ...createKalahState(), ...base }
     case 'belote':
       return { ...createBeloteRound(1, { player1: 0, player2: 0 }), ...base }
     case 'backgammon':
@@ -433,12 +435,8 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       break
     }
     case 'awale': {
-      if (!Array.isArray(state.pits) || state.pits.length !== 12) {
-        return 'Awale pits must be an array of 12'
-      }
-      const sc = state.scores as Record<string, unknown> | undefined
-      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
-        return 'Invalid awale scores'
+      if (!Array.isArray(state.pits) || state.pits.length !== 14) {
+        return 'Kalah pits must be an array of 14'
       }
       break
     }

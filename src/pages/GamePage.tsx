@@ -15,7 +15,7 @@ import { MemoryGame } from '@/components/games/MemoryGame';
 import { ChkobbaGame } from '@/components/games/ChkobbaGame';
 import { YanivGame } from '@/components/games/YanivGame';
 import { RamiGame } from '@/components/games/RamiGame';
-import { AwaleGame } from '@/components/games/AwaleGame';
+import { KalahGame } from '@/components/games/KalahGame';
 import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
@@ -38,7 +38,7 @@ import {
   RamiState, drawCard as ramiDraw, layMeld as ramiLayMeld, addToMeld as ramiAddToMeld,
   discardCard as ramiDiscard, checkCleanWin as ramiCheckCleanWin,
 } from '@/lib/ramiUtils';
-import { AwaleState, playAwaleMove } from '@/lib/awaleUtils';
+import { KalahState, playKalahMove } from '@/lib/kalahUtils';
 import { BeloteState, playBeloteCard } from '@/lib/beloteUtils';
 import { BackgammonState, rollDice as bgRollDice, playBackgammonMove, skipIfNoMoves as bgSkipIfNoMoves } from '@/lib/backgammonUtils';
 import {
@@ -57,7 +57,7 @@ const GAME_TITLES: Record<string, string> = {
   chkobba: 'Chkobba',
   yaniv: 'Yaniv',
   rami: 'Rami',
-  awale: 'Awalé',
+  awale: 'Kalah',
   belote: 'Belote',
   backgammon: 'Backgammon',
   football: 'Foot Stars',
@@ -476,12 +476,12 @@ const GamePage = () => {
     }
   };
 
-  // ==================== AWALÉ HANDLERS ====================
+  // ==================== KALAH HANDLERS ====================
 
-  const handleAwalePlay = async (pitIndex: number) => {
-    const state = gameState as unknown as AwaleState;
+  const handleKalahPlay = async (pitIndex: number) => {
+    const state = gameState as unknown as KalahState;
     const me = amPlayer1 ? 'player1' : 'player2';
-    const result = playAwaleMove(state, me, pitIndex);
+    const result = playKalahMove(state, me, pitIndex);
     const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
 
     if (result.finished) {
@@ -684,7 +684,7 @@ const GamePage = () => {
           />
         );
       case 'awale':
-        return <AwaleGame game={game} playerId={playerId} onPlay={handleAwalePlay} />;
+        return <KalahGame game={game} playerId={playerId} onPlay={handleKalahPlay} />;
       case 'belote':
         return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
       case 'backgammon':

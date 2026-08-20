@@ -3,7 +3,7 @@ import { Game, GameType, GameStatus } from '@/hooks/useGame';
 import { createChkobbaState } from '@/lib/chkobbaUtils';
 import { createYanivState } from '@/lib/yanivUtils';
 import { createRamiState } from '@/lib/ramiUtils';
-import { createAwaleState } from '@/lib/awaleUtils';
+import { createKalahState } from '@/lib/kalahUtils';
 import { createBeloteState } from '@/lib/beloteUtils';
 import { createBackgammonState } from '@/lib/backgammonUtils';
 import { createSoccerStarsState } from '@/lib/soccerStarsUtils';
@@ -29,7 +29,7 @@ export const useSoloGame = (gameType: GameType) => {
       case 'chkobba': return createChkobbaState() as unknown as Record<string, unknown>;
       case 'yaniv': return createYanivState() as unknown as Record<string, unknown>;
       case 'rami': return createRamiState() as unknown as Record<string, unknown>;
-      case 'awale': return createAwaleState() as unknown as Record<string, unknown>;
+      case 'awale': return createKalahState() as unknown as Record<string, unknown>;
       case 'belote': return createBeloteState() as unknown as Record<string, unknown>;
       case 'backgammon': return createBackgammonState() as unknown as Record<string, unknown>;
       case 'football': return createSoccerStarsState() as unknown as Record<string, unknown>;
