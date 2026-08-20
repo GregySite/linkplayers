@@ -2,7 +2,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Users } from 'lucide-react';
-import { useGame, GameStatus } from '@/hooks/useGame';
+import { useGame, GameStatus, GameType } from '@/hooks/useGame';
+import { useLocalGame, needsPrivacyScreen, LOCAL_P1 } from '@/hooks/useLocalGame';
+import { PassPhoneScreen } from '@/components/PassPhoneScreen';
 import { CodeDisplay } from '@/components/CodeDisplay';
 import { MorpionGame } from '@/components/games/MorpionGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
@@ -67,14 +69,31 @@ const GAME_TITLES: Record<string, string> = {
 };
 
 const GamePage = () => {
-  const { code } = useParams<{ code: string }>();
+  const { code, gameType: localGameType } = useParams<{ code: string; gameType: string }>();
   const navigate = useNavigate();
-  const { game, loading, error, playerId, updateGameState, voteRematch, startRematch } = useGame(code);
+  const isLocal = !!localGameType;
+
+  // Les deux sources sont montées inconditionnellement (règles des Hooks) ; useGame
+  // reste inerte sans code, et useLocalGame ne fait que tenir un état en mémoire.
+  const online = useGame(isLocal ? undefined : code);
+  const local = useLocalGame((localGameType || 'morpion') as GameType);
+  const { game, loading, error, playerId, updateGameState, voteRematch, startRematch } = isLocal ? local : online;
+
   const rematchTriggered = useRef(false);
   const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
   const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
   const gorillaPendingRef = useRef<{ finalState: GorillaState; winner: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
   const [gorillaTrajectory, setGorillaTrajectory] = useState<{ x: number; y: number }[] | null>(null);
+
+  // Mode local : masque l'écran au changement de tour pour les jeux à information cachée
+  const localTurn = isLocal ? game?.current_turn ?? null : null;
+  const [ackedTurn, setAckedTurn] = useState<string | null>(localTurn);
+  const hideForPass = isLocal
+    && !!game
+    && needsPrivacyScreen(game.game_type as GameType)
+    && game.status === 'playing'
+    && !game.winner
+    && localTurn !== ackedTurn;
 
   // Check if both players want rematch — only player1 triggers
   useEffect(() => {
@@ -751,6 +770,12 @@ const GamePage = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {hideForPass && (
+        <PassPhoneScreen
+          playerLabel={localTurn === LOCAL_P1 ? 'Joueur 1' : 'Joueur 2'}
+          onReady={() => setAckedTurn(localTurn)}
+        />
+      )}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <button onClick={() => navigate('/')} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -774,8 +799,14 @@ const GamePage = () => {
               </div>
             )}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="w-4 h-4" />
-              <span>{game.player2_id ? '2/2' : '1/2'}</span>
+              {isLocal ? (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Sur ce téléphone</span>
+              ) : (
+                <>
+                  <Users className="w-4 h-4" />
+                  <span>{game.player2_id ? '2/2' : '1/2'}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -783,9 +814,16 @@ const GamePage = () => {
 
       <main className="container mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-8">
-          {game.status === 'waiting' && <CodeDisplay code={game.code} />}
+          {game.status === 'waiting' && !isLocal && <CodeDisplay code={game.code} />}
           <div className="flex justify-center">{renderGame()}</div>
-          {isFinished && game.player2_id && (
+          {isFinished && isLocal && (
+            <div className="flex justify-center">
+              <Button onClick={() => { local.resetGame(); setAckedTurn(LOCAL_P1); }} size="lg" className="font-semibold">
+                Rejouer
+              </Button>
+            </div>
+          )}
+          {isFinished && !isLocal && game.player2_id && (
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center">
               <RematchVote myVote={myVote} opponentVote={opponentVote} onVote={(v) => voteRematch(v)} scores={scores} amPlayer1={amPlayer1} />
             </motion.div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5, Goal } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5, Goal, Smartphone } from 'lucide-react';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { GorillaIcon } from '@/components/GorillaIcon';
 import { Button } from '@/components/ui/button';
@@ -133,6 +133,15 @@ const Index = () => {
                     Solo
                   </Button>
                 </div>
+                <Button
+                  onClick={() => { setSelectedGame(null); navigate(`/local/${selectedGame.type}`); }}
+                  variant="outline"
+                  size="lg"
+                  className="border-primary/50 hover:bg-primary/10 hover:border-primary font-semibold"
+                >
+                  <Smartphone className="w-5 h-5 mr-2" />
+                  Duo sur ce téléphone
+                </Button>
                 <DrawerClose asChild>
                   <Button variant="ghost">Annuler</Button>
                 </DrawerClose>
