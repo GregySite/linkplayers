@@ -19,6 +19,7 @@ import { KalahGame } from '@/components/games/KalahGame';
 import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
+import { GorillasGame } from '@/components/games/GorillasGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -44,6 +45,7 @@ import { BackgammonState, rollDice as bgRollDice, playBackgammonMove, skipIfNoMo
 import {
   SoccerStarsState, applyFlick, kickoffAfterGoal, FlickFrame,
 } from '@/lib/soccerStarsUtils';
+import { GorillaState, throwBanana } from '@/lib/gorillasUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -61,6 +63,7 @@ const GAME_TITLES: Record<string, string> = {
   belote: 'Belote',
   backgammon: 'Backgammon',
   football: 'Foot Stars',
+  gorillas: 'Gorillas',
 };
 
 const GamePage = () => {
@@ -70,6 +73,8 @@ const GamePage = () => {
   const rematchTriggered = useRef(false);
   const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
   const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
+  const gorillaPendingRef = useRef<{ finalState: GorillaState; winner: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
+  const [gorillaTrajectory, setGorillaTrajectory] = useState<{ x: number; y: number }[] | null>(null);
 
   // Check if both players want rematch — only player1 triggers
   useEffect(() => {
@@ -590,6 +595,34 @@ const GamePage = () => {
     await updateGameState(finalState as unknown as Record<string, unknown>, { current_turn: nextTurn });
   };
 
+  // ==================== GORILLAS HANDLERS ====================
+
+  const handleGorillaThrow = (angle: number, velocity: number) => {
+    const state = gameState as unknown as GorillaState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = throwBanana(state, me, angle, velocity);
+    gorillaPendingRef.current = { finalState: result.state, winner: result.winner, me };
+    setGorillaTrajectory(result.state.lastShot?.trajectory ?? []);
+  };
+
+  const handleGorillaAnimationDone = async () => {
+    setGorillaTrajectory(null);
+    const pending = gorillaPendingRef.current;
+    gorillaPendingRef.current = null;
+    if (!pending) return;
+    const { finalState, winner, me } = pending;
+
+    if (winner) {
+      const winnerId = winner === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(finalState as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: winnerId });
+      return;
+    }
+
+    const nextTurnPlayer = me === 'player1' ? 'player2' : 'player1';
+    const nextTurn = nextTurnPlayer === 'player1' ? game.player1_id : game.player2_id;
+    await updateGameState(finalState as unknown as Record<string, unknown>, { current_turn: nextTurn });
+  };
+
   // ==================== GAME OVER CHECK ====================
 
   const isGameFinished = () => {
@@ -697,6 +730,16 @@ const GamePage = () => {
             onFlick={handleFootballFlick}
             pendingFrames={footballFrames}
             onAnimationDone={handleFootballAnimationDone}
+          />
+        );
+      case 'gorillas':
+        return (
+          <GorillasGame
+            game={game}
+            playerId={playerId}
+            onThrow={handleGorillaThrow}
+            pendingTrajectory={gorillaTrajectory}
+            onAnimationDone={handleGorillaAnimationDone}
           />
         );
       case 'memory':

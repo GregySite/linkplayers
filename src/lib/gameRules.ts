@@ -142,4 +142,13 @@ export const GAME_RULES: Record<GameType, GameRules> = {
     ],
     winCondition: 'Premier à 3 buts gagne.',
   },
+  gorillas: {
+    objective: 'Touche le gorille adverse avec une banane avant qu\'il ne te touche.',
+    rules: [
+      'Chacun ton tour, choisis un angle (0° à 90°) et une puissance, puis lance ta banane.',
+      'La banane suit une trajectoire en cloche : la gravité la fait retomber, et le vent la dévie.',
+      'Si tu touches un gratte-ciel, c\'est raté — recalcule ton tir en observant où la banane est tombée.',
+    ],
+    winCondition: 'Premier à toucher l\'adversaire 3 fois gagne.',
+  },
 };

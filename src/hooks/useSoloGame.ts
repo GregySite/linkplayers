@@ -7,6 +7,7 @@ import { createKalahState } from '@/lib/kalahUtils';
 import { createBeloteState } from '@/lib/beloteUtils';
 import { createBackgammonState } from '@/lib/backgammonUtils';
 import { createSoccerStarsState } from '@/lib/soccerStarsUtils';
+import { createGorillaState } from '@/lib/gorillasUtils';
 
 /**
  * Hook that mimics useGame but runs entirely client-side for Solo mode.
@@ -33,6 +34,7 @@ export const useSoloGame = (gameType: GameType) => {
       case 'belote': return createBeloteState() as unknown as Record<string, unknown>;
       case 'backgammon': return createBackgammonState() as unknown as Record<string, unknown>;
       case 'football': return createSoccerStarsState() as unknown as Record<string, unknown>;
+      case 'gorillas': return createGorillaState() as unknown as Record<string, unknown>;
       case 'pendu': return { word: null, guessedLetters: [] };
       case 'dames': {
         const board: (string | null)[] = Array(100).fill(null);

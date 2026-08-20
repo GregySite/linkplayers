@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football' | 'gorillas'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon', 'football']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon', 'football', 'gorillas']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -233,6 +233,37 @@ function createFootballState() {
   }
 }
 
+function createGorillaState() {
+  const FIELD_WIDTH = 100
+  const FIELD_HEIGHT = 56
+  const NUM_BUILDINGS = 8
+  const buildCityscape = () => {
+    const buildings = []
+    const w = FIELD_WIDTH / NUM_BUILDINGS
+    for (let i = 0; i < NUM_BUILDINGS; i++) {
+      const height = 14 + Math.random() * 26
+      buildings.push({ x: i * w, width: w, height, shade: Math.random() })
+    }
+    return buildings
+  }
+  const placeGorilla = (buildings: { x: number; width: number; height: number }[], buildingIndex: number) => {
+    const b = buildings[buildingIndex]
+    return { x: b.x + b.width / 2, y: FIELD_HEIGHT - b.height, buildingIndex }
+  }
+  const buildings = buildCityscape()
+  return {
+    buildings,
+    gorillas: {
+      player1: placeGorilla(buildings, 1),
+      player2: placeGorilla(buildings, NUM_BUILDINGS - 2),
+    },
+    wind: Math.round((Math.random() * 2 - 1) * 10) / 10,
+    scores: { player1: 0, player2: 0 },
+    round: 1,
+    lastShot: null,
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -272,6 +303,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { ...createBackgammonState(), ...base }
     case 'football':
       return { ...createFootballState(), ...base }
+    case 'gorillas':
+      return { ...createGorillaState(), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -480,6 +513,20 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       const sc = state.scores as Record<string, unknown> | undefined
       if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
         return 'Invalid football scores'
+      }
+      break
+    }
+    case 'gorillas': {
+      if (!Array.isArray(state.buildings)) {
+        return 'Gorillas buildings must be an array'
+      }
+      const gorillas = state.gorillas as Record<string, unknown> | undefined
+      if (!gorillas || !gorillas.player1 || !gorillas.player2) {
+        return 'Invalid gorillas positions'
+      }
+      const sc = state.scores as Record<string, unknown> | undefined
+      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
+        return 'Invalid gorillas scores'
       }
       break
     }

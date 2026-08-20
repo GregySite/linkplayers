@@ -18,6 +18,7 @@ import { KalahGame } from '@/components/games/KalahGame';
 import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
+import { GorillasGame } from '@/components/games/GorillasGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -46,6 +47,7 @@ import {
 import {
   SoccerStarsState, applyFlick, kickoffAfterGoal, soccerAI, FlickFrame,
 } from '@/lib/soccerStarsUtils';
+import { GorillaState, throwBanana, gorillaAI } from '@/lib/gorillasUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -55,7 +57,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Kalah', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Kalah', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars', gorillas: 'Gorillas',
 };
 
 const SoloGamePage = () => {
@@ -734,6 +736,8 @@ const SoloGamePage = () => {
   // ==================== FOOTBALL (SOCCER STARS) ====================
   const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; actingPlayer: 'player1' | 'player2' } | null>(null);
   const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
+  const gorillaPendingRef = useRef<{ finalState: GorillaState; winner: 'player1' | 'player2' | null; actingPlayer: 'player1' | 'player2' } | null>(null);
+  const [gorillaTrajectory, setGorillaTrajectory] = useState<{ x: number; y: number }[] | null>(null);
 
   const resolveFootballTurn = async (
     finalState: SoccerStarsState,
@@ -783,6 +787,42 @@ const SoloGamePage = () => {
     footballPendingRef.current = null;
     if (!pending) return;
     await resolveFootballTurn(pending.finalState, pending.goalScored, pending.actingPlayer);
+  };
+
+  // ==================== GORILLAS ====================
+  const playGorillaCpuTurn = (current: GorillaState) => {
+    scheduleCPU(() => {
+      const move = gorillaAI(current, 'player2');
+      const result = throwBanana(current, 'player2', move.angle, move.velocity);
+      gorillaPendingRef.current = { finalState: result.state, winner: result.winner, actingPlayer: 'player2' };
+      setGorillaTrajectory(result.state.lastShot?.trajectory ?? []);
+    }, 900);
+  };
+
+  const handleGorillaThrow = (angle: number, velocity: number) => {
+    const state = gameState as unknown as GorillaState;
+    const result = throwBanana(state, 'player1', angle, velocity);
+    gorillaPendingRef.current = { finalState: result.state, winner: result.winner, actingPlayer: 'player1' };
+    setGorillaTrajectory(result.state.lastShot?.trajectory ?? []);
+  };
+
+  const handleGorillaAnimationDone = async () => {
+    setGorillaTrajectory(null);
+    const pending = gorillaPendingRef.current;
+    gorillaPendingRef.current = null;
+    if (!pending) return;
+    const { finalState, winner, actingPlayer } = pending;
+
+    if (winner) {
+      await updateGameState(finalState as unknown as Record<string, unknown>, {
+        status: 'finished' as GameStatus, winner: winner === 'player1' ? 'human' : 'cpu',
+      });
+      return;
+    }
+
+    const nextTurn = actingPlayer === 'player1' ? 'cpu' : 'human';
+    await updateGameState(finalState as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    if (nextTurn === 'cpu') playGorillaCpuTurn(finalState);
   };
 
   // ==================== GAME OVER ====================
@@ -838,6 +878,16 @@ const SoloGamePage = () => {
             onFlick={handleFootballFlick}
             pendingFrames={footballFrames}
             onAnimationDone={handleFootballAnimationDone}
+          />
+        );
+      case 'gorillas':
+        return (
+          <GorillasGame
+            game={game}
+            playerId={playerId}
+            onThrow={handleGorillaThrow}
+            pendingTrajectory={gorillaTrajectory}
+            onAnimationDone={handleGorillaAnimationDone}
           />
         );
       case 'memory': return <MemoryGame game={game} playerId={playerId} onFlip={handleMemoryFlip} />;
