@@ -200,12 +200,13 @@ export const gorillaAI = (state: GorillaState, player: GorillaPlayer): { angle: 
   candidates.sort((a, b) => a.dist - b.dist);
   // Pioche parmi les meilleurs tirs plutôt que systématiquement le tout meilleur,
   // pour varier les trajectoires d'une manche à l'autre.
-  const pool = candidates.slice(0, 6);
+  const pool = candidates.slice(0, 14);
   const pick = pool[Math.floor(Math.random() * pool.length)] ?? candidates[0];
 
-  // Petite erreur de visée : rend l'IA battable et ses tirs moins robotiques
-  const angleJitter = (Math.random() * 2 - 1) * 4;
-  const velocityJitter = (Math.random() * 2 - 1) * 2.5;
+  // Erreur de visée volontairement large : l'IA doit rater souvent et
+  // ajuster progressivement, comme un joueur humain, pas viser parfaitement.
+  const angleJitter = (Math.random() * 2 - 1) * 9;
+  const velocityJitter = (Math.random() * 2 - 1) * 6;
 
   return {
     angle: Math.max(5, Math.min(85, Math.round(pick.angle + angleJitter))),
