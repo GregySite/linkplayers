@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Users } from 'lucide-react';
-import { useGame, GameStatus, GameType } from '@/hooks/useGame';
+import { useGame, GameStatus, GameType, Game } from '@/hooks/useGame';
 import { useLocalGame, needsPrivacyScreen, LOCAL_P1 } from '@/hooks/useLocalGame';
 import { PassPhoneScreen } from '@/components/PassPhoneScreen';
 import { CodeDisplay } from '@/components/CodeDisplay';
@@ -147,7 +147,17 @@ const GamePage = () => {
     };
     const bothReady = amPlayer1 ? (newState.player2Ready && true) : (newState.player1Ready && true);
     if (bothReady) newState.phase = 'playing';
-    await updateGameState(newState as Record<string, unknown>);
+
+    // En local, les deux joueurs placent leurs navires à tour de rôle sur le même
+    // téléphone : il faut donc passer la main explicitement (en ligne, chacun place
+    // de son côté en parallèle).
+    const updates: Partial<Game> = {};
+    if (isLocal) {
+      updates.current_turn = bothReady
+        ? game.player1_id
+        : (amPlayer1 ? game.player2_id : game.player1_id);
+    }
+    await updateGameState(newState as Record<string, unknown>, updates);
   };
 
   const handleBattleshipShoot = async (row: number, col: number) => {
@@ -204,11 +214,15 @@ const GamePage = () => {
           await updateGameState({
             ...gameState, rounds, player1Choice: null, player2Choice: null,
             currentRound: (gameState.currentRound as number || 1) + 1,
-          });
+          }, isLocal ? { current_turn: game.player1_id } : undefined);
         }
       }, 2500);
     } else {
-      await updateGameState(newState as Record<string, unknown>);
+      // En local, on passe la main pour que l'autre joueur choisisse en secret
+      await updateGameState(
+        newState as Record<string, unknown>,
+        isLocal ? { current_turn: amPlayer1 ? game.player2_id : game.player1_id } : undefined,
+      );
     }
   };
 

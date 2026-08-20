@@ -14,7 +14,7 @@ interface GorillasGameProps {
   onAnimationDone: () => void;
 }
 
-const BUILDING_SHADES = ['#3b3f4a', '#454a57', '#4f5563', '#2f333d'];
+const BUILDING_SHADES = ['#2b3350', '#343d5e', '#3e4870', '#242b45', '#4a4470'];
 
 export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAnimationDone }: GorillasGameProps) => {
   const state = game.game_state as unknown as GorillaState;
@@ -80,51 +80,102 @@ export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAni
     canvas.width = canvasSize.w;
     canvas.height = canvasSize.h;
 
-    // Ciel
+    // Ciel crépusculaire
     const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    sky.addColorStop(0, '#1e3a6e');
-    sky.addColorStop(1, '#4a6fa5');
+    sky.addColorStop(0, '#0f1b3d');
+    sky.addColorStop(0.55, '#2d3a6b');
+    sky.addColorStop(1, '#6b4a7a');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Soleil
+    // Étoiles (positions stables, dérivées d'une suite déterministe)
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    for (let s = 0; s < 40; s++) {
+      const sx = ((s * 73) % 100) / 100 * canvas.width;
+      const sy = ((s * 37) % 45) / 100 * canvas.height;
+      const size = s % 5 === 0 ? 1.6 : 1;
+      ctx.globalAlpha = 0.25 + ((s * 13) % 60) / 100;
+      ctx.fillRect(sx, sy, size, size);
+    }
+    ctx.globalAlpha = 1;
+
+    // Soleil (halo + astre)
     const sunPx = toScreen(SUN_POS.x, SUN_POS.y);
     const sunR = SUN_POS.radius * scale;
-    ctx.fillStyle = sunHitAnim ? '#f97316' : '#facc15';
+    const halo = ctx.createRadialGradient(sunPx.x, sunPx.y, sunR * 0.6, sunPx.x, sunPx.y, sunR * 2.4);
+    halo.addColorStop(0, sunHitAnim ? 'rgba(249,115,22,0.45)' : 'rgba(250,204,21,0.35)');
+    halo.addColorStop(1, 'rgba(250,204,21,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(sunPx.x, sunPx.y, sunR * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    const sunGrad = ctx.createRadialGradient(sunPx.x - sunR * 0.3, sunPx.y - sunR * 0.3, sunR * 0.2, sunPx.x, sunPx.y, sunR);
+    sunGrad.addColorStop(0, sunHitAnim ? '#fdba74' : '#fef9c3');
+    sunGrad.addColorStop(1, sunHitAnim ? '#ea580c' : '#facc15');
+    ctx.fillStyle = sunGrad;
     ctx.beginPath();
     ctx.arc(sunPx.x, sunPx.y, sunR, 0, Math.PI * 2);
     ctx.fill();
-    // Yeux + bouche (content / grognon si touché)
-    ctx.fillStyle = '#1e3a6e';
+
+    // Visage du soleil (content / grognon si touché) — clin d'œil à l'original
+    ctx.fillStyle = '#7c2d12';
     ctx.beginPath();
-    ctx.arc(sunPx.x - sunR * 0.35, sunPx.y - sunR * 0.15, sunR * 0.12, 0, Math.PI * 2);
-    ctx.arc(sunPx.x + sunR * 0.35, sunPx.y - sunR * 0.15, sunR * 0.12, 0, Math.PI * 2);
+    ctx.arc(sunPx.x - sunR * 0.35, sunPx.y - sunR * 0.15, sunR * 0.13, 0, Math.PI * 2);
+    ctx.arc(sunPx.x + sunR * 0.35, sunPx.y - sunR * 0.15, sunR * 0.13, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.strokeStyle = '#1e3a6e';
-    ctx.lineWidth = Math.max(1, sunR * 0.1);
+    ctx.strokeStyle = '#7c2d12';
+    ctx.lineWidth = Math.max(1.5, sunR * 0.12);
+    ctx.lineCap = 'round';
     if (sunHitAnim) {
-      ctx.arc(sunPx.x, sunPx.y + sunR * 0.5, sunR * 0.3, Math.PI, Math.PI * 2);
+      ctx.arc(sunPx.x, sunPx.y + sunR * 0.55, sunR * 0.3, Math.PI * 1.1, Math.PI * 1.9);
     } else {
-      ctx.arc(sunPx.x, sunPx.y + sunR * 0.25, sunR * 0.3, 0, Math.PI);
+      ctx.arc(sunPx.x, sunPx.y + sunR * 0.15, sunR * 0.35, 0.25, Math.PI - 0.25);
     }
     ctx.stroke();
 
-    // Immeubles
+    // Immeubles : façade dégradée, arête éclairée, toit marqué, fenêtres colorées
     state.buildings.forEach((b, i) => {
       const p = toScreen(b.x, FIELD_HEIGHT - b.height);
       const w = b.width * scale;
       const h = b.height * scale;
-      ctx.fillStyle = BUILDING_SHADES[i % BUILDING_SHADES.length];
+      const base = BUILDING_SHADES[i % BUILDING_SHADES.length];
+
+      const facade = ctx.createLinearGradient(p.x, 0, p.x + w, 0);
+      facade.addColorStop(0, base);
+      facade.addColorStop(0.75, base);
+      facade.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = facade;
       ctx.fillRect(p.x, p.y, w, h);
-      // Fenêtres
-      ctx.fillStyle = 'rgba(250, 204, 21, 0.55)';
-      const cols = Math.max(2, Math.floor(w / 8));
-      const rows = Math.max(2, Math.floor(h / 8));
+
+      // Arête gauche éclairée par le crépuscule
+      ctx.fillStyle = 'rgba(255,220,180,0.10)';
+      ctx.fillRect(p.x, p.y, Math.max(1, w * 0.06), h);
+      // Bandeau de toit
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.fillRect(p.x, p.y, w, Math.max(1.5, h * 0.02));
+
+      // Fenêtres — quelques-unes éteintes, teintes légèrement variées
+      const cols = Math.max(2, Math.floor(w / 9));
+      const rows = Math.max(2, Math.floor(h / 9));
+      const cellW = w / cols;
+      const cellH = h / rows;
+      const winW = Math.max(2, cellW * 0.42);
+      const winH = Math.max(2, cellH * 0.38);
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          if ((i * 7 + r * 3 + c) % 3 === 0) continue; // certaines fenêtres éteintes
-          ctx.fillRect(p.x + 3 + c * (w / cols), p.y + 4 + r * (h / rows), 3, 3);
+          const seed = i * 17 + r * 5 + c * 3;
+          if (seed % 3 === 0) continue;
+          ctx.fillStyle = seed % 7 === 0
+            ? 'rgba(186, 230, 253, 0.75)'   // quelques fenêtres bleutées
+            : 'rgba(253, 224, 71, 0.8)';
+          ctx.fillRect(
+            p.x + cellW * c + (cellW - winW) / 2,
+            p.y + cellH * r + (cellH - winH) / 2 + cellH * 0.15,
+            winW,
+            winH,
+          );
         }
       }
     });
@@ -199,18 +250,45 @@ export const GorillasGame = ({ game, playerId, onThrow, pendingTrajectory, onAni
         ctx.closePath();
         ctx.fill();
       } else {
+        // Banane : croissant jaune avec une petite rotation liée à sa position
+        const rot = (animPoint.x + animPoint.y) * 0.35;
+        ctx.save();
+        ctx.translate(bp.x, bp.y);
+        ctx.rotate(rot);
         ctx.fillStyle = '#fde047';
+        ctx.strokeStyle = '#a16207';
+        ctx.lineWidth = Math.max(0.8, r * 0.22);
         ctx.beginPath();
-        ctx.arc(bp.x, bp.y, r, 0, Math.PI * 2);
+        ctx.arc(0, 0, r * 1.25, Math.PI * 0.15, Math.PI * 0.95);
+        ctx.arc(0, r * 0.35, r * 1.1, Math.PI * 0.95, Math.PI * 0.15, true);
+        ctx.closePath();
         ctx.fill();
+        ctx.stroke();
+        ctx.restore();
       }
     }
     if (explosion) {
       const ep = toScreen(explosion.x, explosion.y);
-      ctx.fillStyle = 'rgba(251, 146, 60, 0.8)';
+      const r = 6 * scale;
+      const blast = ctx.createRadialGradient(ep.x, ep.y, r * 0.15, ep.x, ep.y, r);
+      blast.addColorStop(0, 'rgba(255,255,255,0.95)');
+      blast.addColorStop(0.35, 'rgba(253,224,71,0.9)');
+      blast.addColorStop(0.7, 'rgba(249,115,22,0.75)');
+      blast.addColorStop(1, 'rgba(220,38,38,0)');
+      ctx.fillStyle = blast;
       ctx.beginPath();
-      ctx.arc(ep.x, ep.y, 6 * scale, 0, Math.PI * 2);
+      ctx.arc(ep.x, ep.y, r, 0, Math.PI * 2);
       ctx.fill();
+      // Éclats
+      ctx.strokeStyle = 'rgba(253,224,71,0.85)';
+      ctx.lineWidth = Math.max(1, scale * 0.4);
+      for (let k = 0; k < 8; k++) {
+        const ang = (k / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(ep.x + Math.cos(ang) * r * 0.7, ep.y + Math.sin(ang) * r * 0.7);
+        ctx.lineTo(ep.x + Math.cos(ang) * r * 1.25, ep.y + Math.sin(ang) * r * 1.25);
+        ctx.stroke();
+      }
     }
   }, [state, canvasSize, scale, animPoint, explosion, sunHitAnim, toScreen, me]);
 
