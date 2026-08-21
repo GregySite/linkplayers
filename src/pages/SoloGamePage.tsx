@@ -925,9 +925,15 @@ const SoloGamePage = () => {
 
       <main className="container mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-8">
+          {/* Indicateur flottant : superposé au lieu d'être dans le flux, sinon son
+              apparition/disparition pousse tout le plateau vers le bas puis le remonte. */}
           {cpuThinking && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm bg-muted px-4 py-2 rounded-full">
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="fixed top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none"
+            >
+              <div className="flex items-center gap-2 text-muted-foreground text-sm bg-muted/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-border">
                 <Bot className="w-4 h-4 animate-pulse" />
                 L'ordi réfléchit...
               </div>
