@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
-import { RoundTransitionOverlay } from '@/components/RoundTransitionOverlay';
+import { RoundTransitionOverlay, useLatchedRoundSummary } from '@/components/RoundTransitionOverlay';
 import {
   BeloteCard, BeloteState, SUIT_SYMBOLS, rankLabel, isRedSuit,
   legalPlays, BELOTE_ELIMINATION,
@@ -27,7 +27,7 @@ export const BeloteGame = ({ game, playerId, onPlay }: BeloteGameProps) => {
   const opponent = amPlayer1 ? 'player2' : 'player1';
   const isMyTurn = game.current_turn === playerId && game.status === 'playing';
   const isFinished = game.status === 'finished' || !!game.winner;
-  const [ackedRound, setAckedRound] = useState<number | null>(null);
+  const { open: showRoundEnd, summary, acknowledge } = useLatchedRoundSummary(state?.roundSummary, state?.round ?? 0);
 
   if (!state?.hands) {
     return <p className="text-muted-foreground">Distribution en cours...</p>;
@@ -40,7 +40,6 @@ export const BeloteGame = ({ game, playerId, onPlay }: BeloteGameProps) => {
 
   const myTrickCard = state.currentTrick.find(t => t.player === me);
   const opponentTrickCard = state.currentTrick.find(t => t.player === opponent);
-  const summary = state.roundSummary;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md mx-auto space-y-4">
@@ -140,9 +139,9 @@ export const BeloteGame = ({ game, playerId, onPlay }: BeloteGameProps) => {
       </div>
 
       <RoundTransitionOverlay
-        open={!!summary && state.round !== ackedRound}
+        open={showRoundEnd}
         title="Fin de manche !"
-        onContinue={() => setAckedRound(state.round)}
+        onContinue={acknowledge}
       >
         {summary && (
           <>

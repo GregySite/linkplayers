@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
-import { RoundTransitionOverlay } from '@/components/RoundTransitionOverlay';
+import { RoundTransitionOverlay, useLatchedRoundSummary } from '@/components/RoundTransitionOverlay';
 import {
   YanivCard, YanivState, SUIT_SYMBOLS, rankLabel, isRedSuit,
   isValidDiscard, canCallYaniv, handPoints, YANIV_ELIMINATION, canSlap,
@@ -35,9 +35,9 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
   const isFinished = game.status === 'finished' || !!game.winner;
 
   const [selected, setSelected] = useState<number[]>([]);
-  const [ackedRound, setAckedRound] = useState<number | null>(null);
   const [slapMsLeft, setSlapMsLeft] = useState(SLAP_WINDOW_MS);
 
+  const { open: showRoundEnd, summary, acknowledge } = useLatchedRoundSummary(state?.roundSummary, state?.round ?? 0);
   // Calculé avant le retour anticipé pour que les Hooks restent dans un ordre stable
   const pendingSlap = isMyTurn && !isFinished && !!state?.hands && canSlap(state, me);
 
@@ -98,7 +98,6 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
     setSelected([]);
   };
 
-  const summary = state.roundSummary;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md mx-auto space-y-5">
@@ -283,9 +282,9 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
 
       {/* Transition entre les manches — bloque l'écran tant que non acquittée */}
       <RoundTransitionOverlay
-        open={!!summary && state.round !== ackedRound}
+        open={showRoundEnd}
         title={summary?.assaf ? 'Assaf !' : 'Manche terminée !'}
-        onContinue={() => setAckedRound(state.round)}
+        onContinue={acknowledge}
       >
         {summary && (
           <>

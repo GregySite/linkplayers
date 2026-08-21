@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { Button } from '@/components/ui/button';
-import { RoundTransitionOverlay } from '@/components/RoundTransitionOverlay';
+import { RoundTransitionOverlay, useLatchedRoundSummary } from '@/components/RoundTransitionOverlay';
 import {
   RamiCard, RamiState, SUIT_SYMBOLS, rankLabel, isRedSuit,
   isValidMeld, handPoints, RAMI_ELIMINATION,
@@ -34,7 +34,7 @@ export const RamiGame = ({ game, playerId, onDraw, onLayMeld, onAddToMeld, onDis
 
   const [selected, setSelected] = useState<number[]>([]);
   const [selectedMeld, setSelectedMeld] = useState<string | null>(null);
-  const [ackedRound, setAckedRound] = useState<number | null>(null);
+  const { open: showRoundEnd, summary, acknowledge } = useLatchedRoundSummary(state?.roundSummary, state?.round ?? 0);
 
   useEffect(() => {
     setSelected([]);
@@ -67,7 +67,6 @@ export const RamiGame = ({ game, playerId, onDraw, onLayMeld, onAddToMeld, onDis
     setSelectedMeld(prev => (prev === meldId ? null : meldId));
   };
 
-  const summary = state.roundSummary;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md mx-auto space-y-4">
@@ -218,9 +217,9 @@ export const RamiGame = ({ game, playerId, onDraw, onLayMeld, onAddToMeld, onDis
       </div>
 
       <RoundTransitionOverlay
-        open={!!summary && state.round !== ackedRound}
+        open={showRoundEnd}
         title="Manche terminée !"
-        onContinue={() => setAckedRound(state.round)}
+        onContinue={acknowledge}
       >
         {summary && (
           <>

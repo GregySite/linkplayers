@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -11,6 +11,32 @@ interface RoundTransitionOverlayProps {
 
 const AUTO_CLOSE_MS = 5000;
 const TICK_MS = 50;
+
+/**
+ * Retient le résumé de manche au moment où il apparaît, et le garde affiché
+ * jusqu'à ce que le joueur l'ait vu. Indispensable car le résumé est effacé de
+ * l'état dès le coup suivant : en solo, l'IA joue ~1 s plus tard et ferait
+ * disparaître la fenêtre avant la fin du décompte.
+ */
+export function useLatchedRoundSummary<T>(summary: T | null | undefined, round: number) {
+  const [latched, setLatched] = useState<{ summary: T; round: number } | null>(null);
+  const [ackedRound, setAckedRound] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (summary) setLatched(prev => (prev?.round === round ? prev : { summary, round }));
+  }, [summary, round]);
+
+  const open = !!latched && latched.round !== ackedRound;
+
+  const acknowledge = useCallback(() => {
+    setLatched(prev => {
+      if (prev) setAckedRound(prev.round);
+      return prev;
+    });
+  }, []);
+
+  return { open, summary: latched?.summary ?? null, acknowledge };
+}
 
 /**
  * Affiche le résultat de la manche qui vient de se terminer, puis enchaîne
