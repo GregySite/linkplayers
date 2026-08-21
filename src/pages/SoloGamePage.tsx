@@ -923,22 +923,26 @@ const SoloGamePage = () => {
         </div>
       </header>
 
+      {/* Indicateur flottant, volontairement placé HORS de <main> : à l'intérieur, il
+          restait un enfant du conteneur space-y-8, si bien que son apparition faisait
+          gagner une marge supérieure au plateau (qui n'était plus le premier enfant)
+          et décalait tout. Hors du conteneur animé, le positionnement fixe se réfère
+          aussi correctement à la fenêtre. */}
+      {cpuThinking && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed top-20 left-0 right-0 z-40 flex justify-center pointer-events-none"
+        >
+          <div className="flex items-center gap-2 text-muted-foreground text-sm bg-muted/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-border">
+            <Bot className="w-4 h-4 animate-pulse" />
+            L'ordi réfléchit...
+          </div>
+        </motion.div>
+      )}
+
       <main className="container mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-8">
-          {/* Indicateur flottant : superposé au lieu d'être dans le flux, sinon son
-              apparition/disparition pousse tout le plateau vers le bas puis le remonte. */}
-          {cpuThinking && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="fixed top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none"
-            >
-              <div className="flex items-center gap-2 text-muted-foreground text-sm bg-muted/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-border">
-                <Bot className="w-4 h-4 animate-pulse" />
-                L'ordi réfléchit...
-              </div>
-            </motion.div>
-          )}
           <div className="flex justify-center">{renderGame()}</div>
           {isFinished && (
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4">
