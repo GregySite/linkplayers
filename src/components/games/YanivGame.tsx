@@ -147,43 +147,52 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
         )}
       </div>
 
-      {/* Zone slap — toujours réservée, pour que rien ne se décale à son apparition */}
-      <div className="h-16 flex flex-col justify-center gap-2">
-        {pendingSlap && (
-          <>
-            <div className="h-1.5 max-w-[12rem] mx-auto w-full rounded-full bg-muted overflow-hidden">
+      {/* Slap : superposition centrée sur l'écran, impossible à rater */}
+      {pendingSlap && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm px-6">
+          <motion.div
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-xs rounded-2xl border-2 border-primary bg-card p-5 space-y-4 text-center shadow-2xl"
+          >
+            <p className="text-2xl font-bold text-primary">👋 SLAP !</p>
+            <p className="text-sm text-muted-foreground">
+              Tu as pioché la même valeur que ta défausse — repose-la vite !
+            </p>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full bg-primary transition-[width] duration-100 ease-linear"
                 style={{ width: `${(slapMsLeft / SLAP_WINDOW_MS) * 100}%` }}
               />
             </div>
-            <div className="flex justify-center gap-2">
-              <Button size="sm" onClick={onSlap} className="font-semibold">
-                👋 Slaper !
+            <div className="flex gap-2">
+              <Button onClick={onSlap} size="lg" className="flex-1 font-bold text-base">
+                Slaper !
               </Button>
-              <Button size="sm" onClick={onSkipSlap} variant="outline">
+              <Button onClick={onSkipSlap} size="lg" variant="outline" className="flex-1">
                 Passer
               </Button>
             </div>
-          </>
-        )}
-      </div>
+          </motion.div>
+        </div>
+      )}
 
-      {/* Main adverse (dos de cartes) */}
-      <div className="flex justify-center gap-1.5 flex-wrap">
+      {/* Main adverse — hauteur fixe et sans repli, sinon le nombre de cartes
+          changerait la hauteur et décalerait tout le reste */}
+      <div className="h-12 flex justify-center items-center gap-1.5 overflow-hidden">
         {Array.from({ length: opponentHandCount }).map((_, i) => (
-          <div key={i} className="w-8 h-12 rounded-lg bg-muted border-2 border-border flex items-center justify-center text-muted-foreground/30">
+          <div key={i} className="w-8 h-12 shrink-0 rounded-lg bg-muted border-2 border-border flex items-center justify-center text-muted-foreground/30">
             ?
           </div>
         ))}
       </div>
 
       {/* Défausse */}
-      <div className="rounded-2xl border border-border bg-card/50 p-3 min-h-[6.5rem]">
-        <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground mb-2 text-center">
-          Défausse {isMyTurn && selectionValid ? '— tape une carte pour la reprendre' : ''}
+      <div className="rounded-2xl border border-border bg-card/50 p-3 h-[7.5rem]">
+        <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground mb-2 text-center h-4 truncate">
+          Défausse {isMyTurn && selectionValid ? '— tape pour reprendre' : ''}
         </p>
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex justify-center gap-2">
           <AnimatePresence>
             {discardTop.map((card) => {
               const isPickable = isMyTurn && selectionValid && pickable.some(c => c.id === card.id);
@@ -197,7 +206,7 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
                   whileTap={isPickable ? { scale: 0.94 } : {}}
                   onClick={() => isPickable && drawFromDiscard(card.id)}
                   disabled={!isPickable}
-                  className={`w-12 h-16 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                  className={`w-12 h-16 shrink-0 rounded-lg border-2 flex items-center justify-center transition-colors ${
                     isPickable
                       ? 'bg-card border-primary text-foreground hover:bg-primary/10'
                       : 'bg-card border-border text-foreground/70'
@@ -209,7 +218,7 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
             })}
           </AnimatePresence>
           {discardTop.length === 0 && (
-            <p className="text-xs text-muted-foreground py-6">Défausse vide</p>
+            <p className="text-xs text-muted-foreground py-5">Défausse vide</p>
           )}
         </div>
       </div>
@@ -235,7 +244,9 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
         <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground text-center">
           Ta main ({myTotal} pts)
         </p>
-        <div className="flex justify-center gap-2 flex-wrap">
+        {/* Hauteur fixe : la main varie de 3 à 7+ cartes, sans quoi elle se replierait
+            sur deux rangées et ferait bouger tout le bloc */}
+        <div className="h-24 flex justify-center items-center gap-1.5 overflow-x-auto">
           <AnimatePresence>
             {myHand.map((card, index) => (
               <motion.button
@@ -247,7 +258,7 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
                 whileTap={isMyTurn ? { scale: 0.95 } : {}}
                 onClick={() => toggleCard(index)}
                 disabled={!isMyTurn || isFinished}
-                className={`w-14 h-20 rounded-xl border-2 flex items-center justify-center transition-colors ${
+                className={`w-14 h-20 shrink-0 rounded-xl border-2 flex items-center justify-center transition-colors ${
                   selected.includes(index)
                     ? 'bg-primary/20 border-primary text-primary'
                     : isMyTurn
