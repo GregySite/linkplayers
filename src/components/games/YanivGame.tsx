@@ -296,19 +296,39 @@ export const YanivGame = ({ game, playerId, onPlay, onYaniv, onSlap, onSkipSlap 
             </p>
 
             {/* Mains dévoilées : on voit enfin ce que l'adversaire avait */}
-            <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
+            <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-3">
               <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground">Mains dévoilées</p>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Toi</span>
-                <span className="font-bold text-foreground">
-                  {summary.caller === me ? summary.callerTotal : summary.opponentTotal} pts
-                </span>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Toi</span>
+                  <span className="font-bold text-foreground">
+                    {summary.caller === me ? summary.callerTotal : summary.opponentTotal} pts
+                  </span>
+                </div>
+                <div className="flex justify-center gap-1 flex-wrap">
+                  {(summary.hands?.[me] ?? []).map(card => (
+                    <div key={card.id} className="w-7 h-10 rounded border border-border bg-card flex items-center justify-center">
+                      <CardFace card={card} size="sm" />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Adversaire</span>
-                <span className="font-bold text-foreground">
-                  {summary.caller === me ? summary.opponentTotal : summary.callerTotal} pts
-                </span>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Adversaire</span>
+                  <span className="font-bold text-foreground">
+                    {summary.caller === me ? summary.opponentTotal : summary.callerTotal} pts
+                  </span>
+                </div>
+                <div className="flex justify-center gap-1 flex-wrap">
+                  {(summary.hands?.[opponent] ?? []).map(card => (
+                    <div key={card.id} className="w-7 h-10 rounded border border-primary/50 bg-card flex items-center justify-center">
+                      <CardFace card={card} size="sm" />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 

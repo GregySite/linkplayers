@@ -49,6 +49,8 @@ export interface YanivRoundSummary {
   callerTotal: number;
   opponentTotal: number;
   points: { player1: number; player2: number };
+  /** Mains révélées en fin de manche, pour montrer ce que chacun avait. */
+  hands: { player1: YanivCard[]; player2: YanivCard[] };
 }
 
 export interface YanivState {
@@ -299,6 +301,10 @@ export function callYaniv(prev: YanivState, player: YanivPlayer): YanivPlayResul
     callerTotal,
     opponentTotal,
     points: gained,
+    hands: {
+      player1: [...state.hands.player1],
+      player2: [...state.hands.player2],
+    },
   };
 
   const p1Out = scores.player1 >= YANIV_ELIMINATION;
