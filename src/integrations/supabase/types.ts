@@ -76,6 +76,13 @@ export type Database = {
         | "dames"
         | "memory"
         | "chkobba"
+        | "yaniv"
+        | "rami"
+        | "awale"
+        | "belote"
+        | "backgammon"
+        | "football"
+        | "gorillas"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -215,6 +222,13 @@ export const Constants = {
         "dames",
         "memory",
         "chkobba",
+        "yaniv",
+        "rami",
+        "awale",
+        "belote",
+        "backgammon",
+        "football",
+        "gorillas",
       ],
     },
   },
