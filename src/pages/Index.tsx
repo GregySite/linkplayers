@@ -62,7 +62,7 @@ const Index = () => {
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">amis</span>
             </h1>
             <p className="text-muted-foreground text-lg max-w-md mx-auto">
-              15 jeux de cartes, de plateau et d'adresse. À distance, sur le même téléphone, ou contre l'ordinateur — sans inscription.
+              Des jeux de cartes, de plateau et d'adresse. À distance, sur le même téléphone, ou contre l'ordinateur — sans inscription.
             </p>
           </motion.div>
 
