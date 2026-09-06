@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5, Goal, Smartphone } from 'lucide-react';
+import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5, Goal, Smartphone, Coins } from 'lucide-react';
 import { JoinGameModal } from '@/components/JoinGameModal';
 import { GorillaIcon } from '@/components/GorillaIcon';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ const GAMES: { type: GameType; title: string; description: string; icon: React.R
   { type: 'backgammon', title: 'Backgammon', description: 'Le grand classique du plateau et des dés. Rentre tes pions à la maison avant l\'adversaire !', icon: <Dice5 className="w-6 h-6" /> },
   { type: 'football', title: 'Foot Stars', description: 'Vise et tire tes pions comme au air-hockey pour envoyer le ballon au fond des filets ! Premier à 3 buts gagne.', icon: <Goal className="w-6 h-6" /> },
   { type: 'gorillas', title: 'Gorillas', description: 'Deux gorilles sur des gratte-ciels se lancent des bananes ! Indique l\'angle et la puissance pour toucher l\'adversaire.', icon: <GorillaIcon className="w-6 h-6" /> },
+  { type: 'blackjack', title: 'Blackjack', description: 'Chacun sa main face au croupier commun. Approche-toi de 21 sans le dépasser pour le battre !', icon: <Coins className="w-6 h-6" /> },
 ];
 
 const Index = () => {

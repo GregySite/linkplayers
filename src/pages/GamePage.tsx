@@ -22,6 +22,7 @@ import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
 import { GorillasGame } from '@/components/games/GorillasGame';
+import { BlackjackGame } from '@/components/games/BlackjackGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -48,6 +49,7 @@ import {
   SoccerStarsState, applyFlick, kickoffAfterGoal, FlickFrame,
 } from '@/lib/soccerStarsUtils';
 import { GorillaState, throwBanana } from '@/lib/gorillasUtils';
+import { BlackjackState, playBlackjackAction } from '@/lib/blackjackUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -66,6 +68,7 @@ const GAME_TITLES: Record<string, string> = {
   backgammon: 'Backgammon',
   football: 'Foot Stars',
   gorillas: 'Gorillas',
+  blackjack: 'Blackjack',
 };
 
 const GamePage = () => {
@@ -536,6 +539,28 @@ const GamePage = () => {
     }
   };
 
+  // ==================== BLACKJACK HANDLERS ====================
+
+  const handleBlackjackAction = async (action: 'hit' | 'stand') => {
+    const state = gameState as unknown as BlackjackState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playBlackjackAction(state, me, action);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (result.finished) {
+      const winner = result.winner ? (result.winner === 'player1' ? game.player1_id : game.player2_id) : null;
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { status: 'finished' as GameStatus, winner }
+      );
+    } else {
+      await updateGameState(
+        result.state as unknown as Record<string, unknown>,
+        { current_turn: nextTurn }
+      );
+    }
+  };
+
   // ==================== BELOTE HANDLERS ====================
 
   const handleBelotePlay = async (handIndex: number) => {
@@ -753,6 +778,8 @@ const GamePage = () => {
         return <KalahGame game={game} playerId={playerId} onPlay={handleKalahPlay} />;
       case 'belote':
         return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
+      case 'blackjack':
+        return <BlackjackGame game={game} playerId={playerId} onAction={handleBlackjackAction} />;
       case 'backgammon':
         return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'football':

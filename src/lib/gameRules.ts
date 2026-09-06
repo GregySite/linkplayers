@@ -151,4 +151,13 @@ export const GAME_RULES: Record<GameType, GameRules> = {
     ],
     winCondition: 'Premier à toucher l\'adversaire 3 fois gagne.',
   },
+  blackjack: {
+    objective: 'Rapproche-toi le plus possible de 21 sans le dépasser, pour battre le croupier.',
+    rules: [
+      'Tu affrontes le croupier, pas ton adversaire : chacun joue sa main l\'un après l\'autre.',
+      'Tire une carte pour augmenter ta main, ou reste si tu es satisfait. Les figures valent 10, l\'As vaut 1 ou 11.',
+      'Une fois les deux joueurs terminés, le croupier révèle sa carte cachée et tire tant qu\'il n\'atteint pas 17.',
+    ],
+    winCondition: 'Bats le croupier (main plus proche de 21 sans dépasser, ou croupier qui saute) pour gagner la manche. Premier à 5 manches gagnées.',
+  },
 };

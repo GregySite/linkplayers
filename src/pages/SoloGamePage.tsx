@@ -19,6 +19,7 @@ import { BeloteGame } from '@/components/games/BeloteGame';
 import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
 import { GorillasGame } from '@/components/games/GorillasGame';
+import { BlackjackGame } from '@/components/games/BlackjackGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -48,6 +49,7 @@ import {
   SoccerStarsState, applyFlick, kickoffAfterGoal, soccerAI, FlickFrame,
 } from '@/lib/soccerStarsUtils';
 import { GorillaState, throwBanana, gorillaAI } from '@/lib/gorillasUtils';
+import { BlackjackState, playBlackjackAction, blackjackAI } from '@/lib/blackjackUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -57,7 +59,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Kalah', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars', gorillas: 'Gorillas',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Kalah', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars', gorillas: 'Gorillas', blackjack: 'Blackjack',
 };
 
 const SoloGamePage = () => {
@@ -635,6 +637,43 @@ const SoloGamePage = () => {
     if (nextTurn === 'cpu') playKalahCpuTurn(result.state);
   };
 
+  // ==================== BLACKJACK ====================
+  const playBlackjackCpuTurn = (current: BlackjackState) => {
+    scheduleCPU(async () => {
+      const action = blackjackAI(current, 'player2');
+      const result = playBlackjackAction(current, 'player2', action);
+
+      if (result.finished) {
+        await updateGameState(result.state as unknown as Record<string, unknown>, {
+          status: 'finished' as GameStatus,
+          winner: result.winner ? (result.winner === 'player1' ? 'human' : 'cpu') : null,
+        });
+        return;
+      }
+
+      const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+      if (nextTurn === 'cpu') playBlackjackCpuTurn(result.state);
+    }, 700);
+  };
+
+  const handleBlackjackAction = async (action: 'hit' | 'stand') => {
+    const state = gameState as unknown as BlackjackState;
+    const result = playBlackjackAction(state, 'player1', action);
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, {
+        status: 'finished' as GameStatus,
+        winner: result.winner ? (result.winner === 'player1' ? 'human' : 'cpu') : null,
+      });
+      return;
+    }
+
+    const nextTurn = result.nextPlayer === 'player1' ? 'human' : 'cpu';
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    if (nextTurn === 'cpu') playBlackjackCpuTurn(result.state);
+  };
+
   // ==================== BELOTE ====================
   const playBeloteCpuTurn = (current: BeloteState) => {
     scheduleCPU(async () => {
@@ -869,6 +908,7 @@ const SoloGamePage = () => {
         );
       case 'awale': return <KalahGame game={game} playerId={playerId} onPlay={handleKalahPlay} />;
       case 'belote': return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
+      case 'blackjack': return <BlackjackGame game={game} playerId={playerId} onAction={handleBlackjackAction} />;
       case 'backgammon': return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'football':
         return (

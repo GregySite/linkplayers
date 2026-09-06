@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football' | 'gorillas'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football' | 'gorillas' | 'blackjack'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon', 'football', 'gorillas']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon', 'football', 'gorillas', 'blackjack']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -264,6 +264,44 @@ function createGorillaState() {
   }
 }
 
+type BlackjackSuit = 'spades' | 'hearts' | 'diamonds' | 'clubs'
+interface BlackjackCard { id: string; suit: BlackjackSuit; rank: number }
+
+function buildBlackjackDeck(): BlackjackCard[] {
+  const suits: BlackjackSuit[] = ['spades', 'hearts', 'diamonds', 'clubs']
+  const deck: BlackjackCard[] = []
+  for (const suit of suits) {
+    for (let rank = 1; rank <= 13; rank++) deck.push({ id: `${suit}-${rank}`, suit, rank })
+  }
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]]
+  }
+  return deck
+}
+
+function createBlackjackRound(round: number, scores: { player1: number; player2: number }) {
+  const deck = buildBlackjackDeck()
+  const draw = () => deck.pop() as BlackjackCard
+  const hands = { player1: [draw(), draw()], player2: [draw(), draw()] }
+  const dealerHand = [draw(), draw()]
+  return {
+    deck,
+    hands,
+    dealerHand,
+    standing: { player1: false, player2: false },
+    busted: { player1: false, player2: false },
+    turn: 'player1',
+    scores,
+    round,
+    roundSummary: null,
+  }
+}
+
+function createBlackjackState() {
+  return createBlackjackRound(1, { player1: 0, player2: 0 })
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -305,6 +343,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { ...createFootballState(), ...base }
     case 'gorillas':
       return { ...createGorillaState(), ...base }
+    case 'blackjack':
+      return { ...createBlackjackState(), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -527,6 +567,34 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       const sc = state.scores as Record<string, unknown> | undefined
       if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
         return 'Invalid gorillas scores'
+      }
+      break
+    }
+    case 'blackjack': {
+      const hands = state.hands as Record<string, unknown> | undefined
+      if (!hands || !Array.isArray(hands.player1) || !Array.isArray(hands.player2)) {
+        return 'Blackjack hands must be arrays'
+      }
+      if (!Array.isArray(state.dealerHand)) {
+        return 'Blackjack dealerHand must be an array'
+      }
+      if (!Array.isArray(state.deck)) {
+        return 'Blackjack deck must be an array'
+      }
+      const standing = state.standing as Record<string, unknown> | undefined
+      const busted = state.busted as Record<string, unknown> | undefined
+      if (!standing || typeof standing.player1 !== 'boolean' || typeof standing.player2 !== 'boolean') {
+        return 'Invalid blackjack standing'
+      }
+      if (!busted || typeof busted.player1 !== 'boolean' || typeof busted.player2 !== 'boolean') {
+        return 'Invalid blackjack busted'
+      }
+      if (state.turn !== 'player1' && state.turn !== 'player2') {
+        return 'Invalid blackjack turn'
+      }
+      const sc = state.scores as Record<string, unknown> | undefined
+      if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
+        return 'Invalid blackjack scores'
       }
       break
     }

@@ -21,7 +21,7 @@ export const needsPrivacyScreen = (gameType: GameType): boolean => HIDDEN_INFO_G
  * de zéro : réutiliser puis incrémenter ce score fausserait le comptage.
  */
 export const GAMES_WITH_OWN_SCORE: GameType[] = [
-  'gorillas', 'football', 'yaniv', 'rami', 'belote', 'chkobba', 'awale', 'rps', 'memory',
+  'gorillas', 'football', 'yaniv', 'rami', 'belote', 'chkobba', 'awale', 'rps', 'memory', 'blackjack',
 ];
 
 export const useLocalGame = (gameType: GameType) => {
