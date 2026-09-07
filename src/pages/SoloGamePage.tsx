@@ -20,6 +20,7 @@ import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
 import { GorillasGame } from '@/components/games/GorillasGame';
 import { BlackjackGame } from '@/components/games/BlackjackGame';
+import { QuoridorGame } from '@/components/games/QuoridorGame';
 import { BattleshipGame } from '@/components/games/BattleshipGame';
 import { Button } from '@/components/ui/button';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -50,6 +51,7 @@ import {
 } from '@/lib/soccerStarsUtils';
 import { GorillaState, throwBanana, gorillaAI } from '@/lib/gorillasUtils';
 import { BlackjackState, playBlackjackAction, blackjackAI } from '@/lib/blackjackUtils';
+import { QuoridorState, playQuoridorMove, playQuoridorWall, quoridorAI } from '@/lib/quoridorUtils';
 import {
   morpionAI, connect4AI, rpsAI, othelloAI, damesAI,
   penduAIPickWord, penduAIGuess, battleshipAIShoot, battleshipAIPlaceShips,
@@ -59,7 +61,7 @@ import {
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion', battleship: 'Bataille Navale', connect4: 'Puissance 4',
   rps: 'Pierre-Papier-Ciseaux', othello: 'Othello', pendu: 'Pendu',
-  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Kalah', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars', gorillas: 'Gorillas', blackjack: 'Blackjack',
+  dames: 'Dames', memory: 'Memory', chkobba: 'Chkobba', yaniv: 'Yaniv', rami: 'Rami', awale: 'Kalah', belote: 'Belote', backgammon: 'Backgammon', football: 'Foot Stars', gorillas: 'Gorillas', blackjack: 'Blackjack', quoridor: 'Quoridor',
 };
 
 const SoloGamePage = () => {
@@ -637,6 +639,46 @@ const SoloGamePage = () => {
     if (nextTurn === 'cpu') playKalahCpuTurn(result.state);
   };
 
+  // ==================== QUORIDOR ====================
+  const playQuoridorCpuTurn = (current: QuoridorState) => {
+    scheduleCPU(async () => {
+      const action = quoridorAI(current, 'player2');
+      const result = action.type === 'move'
+        ? playQuoridorMove(current, 'player2', action.to)
+        : playQuoridorWall(current, 'player2', action.wall);
+
+      if (result.finished) {
+        await updateGameState(result.state as unknown as Record<string, unknown>, {
+          status: 'finished' as GameStatus,
+          winner: 'cpu',
+        });
+        return;
+      }
+
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'human' });
+    }, 600);
+  };
+
+  const handleQuoridorMove = async (to: { row: number; col: number }) => {
+    const state = gameState as unknown as QuoridorState;
+    const result = playQuoridorMove(state, 'player1', to);
+
+    if (result.finished) {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner: 'human' });
+      return;
+    }
+
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+    playQuoridorCpuTurn(result.state);
+  };
+
+  const handleQuoridorWall = async (wall: { row: number; col: number; orientation: 'h' | 'v' }) => {
+    const state = gameState as unknown as QuoridorState;
+    const result = playQuoridorWall(state, 'player1', wall);
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: 'cpu' });
+    playQuoridorCpuTurn(result.state);
+  };
+
   // ==================== BLACKJACK ====================
   const playBlackjackCpuTurn = (current: BlackjackState) => {
     scheduleCPU(async () => {
@@ -909,6 +951,7 @@ const SoloGamePage = () => {
       case 'awale': return <KalahGame game={game} playerId={playerId} onPlay={handleKalahPlay} />;
       case 'belote': return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
       case 'blackjack': return <BlackjackGame game={game} playerId={playerId} onAction={handleBlackjackAction} />;
+      case 'quoridor': return <QuoridorGame game={game} playerId={playerId} onMove={handleQuoridorMove} onWall={handleQuoridorWall} />;
       case 'backgammon': return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'football':
         return (

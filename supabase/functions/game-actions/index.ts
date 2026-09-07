@@ -7,9 +7,9 @@ const corsHeaders = {
 
 // ==================== TYPES ====================
 
-type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football' | 'gorillas' | 'blackjack'
+type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football' | 'gorillas' | 'blackjack' | 'quoridor'
 
-const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon', 'football', 'gorillas', 'blackjack']
+const VALID_GAME_TYPES: GameType[] = ['morpion', 'battleship', 'connect4', 'rps', 'othello', 'pendu', 'dames', 'memory', 'chkobba', 'yaniv', 'rami', 'awale', 'belote', 'backgammon', 'football', 'gorillas', 'blackjack', 'quoridor']
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -302,6 +302,21 @@ function createBlackjackState() {
   return createBlackjackRound(1, { player1: 0, player2: 0 })
 }
 
+const QUORIDOR_SIZE = 9
+const QUORIDOR_WALLS_PER_PLAYER = 10
+
+function createQuoridorState() {
+  return {
+    pawns: {
+      player1: { row: QUORIDOR_SIZE - 1, col: 4 },
+      player2: { row: 0, col: 4 },
+    },
+    wallsLeft: { player1: QUORIDOR_WALLS_PER_PLAYER, player2: QUORIDOR_WALLS_PER_PLAYER },
+    walls: [] as { row: number; col: number; orientation: 'h' | 'v' }[],
+    turn: 'player1',
+  }
+}
+
 function getInitialState(gameType: GameType, extra?: Record<string, unknown>): Record<string, unknown> {
   const base = extra || {}
   switch (gameType) {
@@ -345,6 +360,8 @@ function getInitialState(gameType: GameType, extra?: Record<string, unknown>): R
       return { ...createGorillaState(), ...base }
     case 'blackjack':
       return { ...createBlackjackState(), ...base }
+    case 'quoridor':
+      return { ...createQuoridorState(), ...base }
     case 'memory':
       return {
         cards: createMemoryCards(),
@@ -595,6 +612,34 @@ function validateGameState(gameType: string, state: Record<string, unknown>): st
       const sc = state.scores as Record<string, unknown> | undefined
       if (!sc || typeof sc.player1 !== 'number' || typeof sc.player2 !== 'number') {
         return 'Invalid blackjack scores'
+      }
+      break
+    }
+    case 'quoridor': {
+      const pawns = state.pawns as Record<string, { row?: unknown; col?: unknown }> | undefined
+      if (!pawns || !pawns.player1 || !pawns.player2) {
+        return 'Invalid quoridor pawns'
+      }
+      for (const p of [pawns.player1, pawns.player2]) {
+        if (typeof p.row !== 'number' || typeof p.col !== 'number' || p.row < 0 || p.row > 8 || p.col < 0 || p.col > 8) {
+          return 'Quoridor pawn position out of bounds'
+        }
+      }
+      const wallsLeft = state.wallsLeft as Record<string, unknown> | undefined
+      if (!wallsLeft || typeof wallsLeft.player1 !== 'number' || typeof wallsLeft.player2 !== 'number' ||
+          wallsLeft.player1 < 0 || wallsLeft.player1 > 10 || wallsLeft.player2 < 0 || wallsLeft.player2 > 10) {
+        return 'Invalid quoridor wallsLeft'
+      }
+      if (!Array.isArray(state.walls)) {
+        return 'Quoridor walls must be an array'
+      }
+      for (const w of state.walls as Record<string, unknown>[]) {
+        if (typeof w.row !== 'number' || typeof w.col !== 'number' || (w.orientation !== 'h' && w.orientation !== 'v')) {
+          return 'Invalid quoridor wall'
+        }
+      }
+      if (state.turn !== 'player1' && state.turn !== 'player2') {
+        return 'Invalid quoridor turn'
       }
       break
     }

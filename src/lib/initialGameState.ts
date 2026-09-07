@@ -8,6 +8,7 @@ import { createBackgammonState } from '@/lib/backgammonUtils';
 import { createSoccerStarsState } from '@/lib/soccerStarsUtils';
 import { createGorillaState } from '@/lib/gorillasUtils';
 import { createBlackjackState } from '@/lib/blackjackUtils';
+import { createQuoridorState } from '@/lib/quoridorUtils';
 
 /** État initial d'une partie, partagé par les modes solo et local (deux joueurs sur le même téléphone). */
 export const createInitialGameState = (gameType: GameType): Record<string, unknown> => {
@@ -29,6 +30,7 @@ export const createInitialGameState = (gameType: GameType): Record<string, unkno
       case 'football': return createSoccerStarsState() as unknown as Record<string, unknown>;
       case 'gorillas': return createGorillaState() as unknown as Record<string, unknown>;
       case 'blackjack': return createBlackjackState() as unknown as Record<string, unknown>;
+      case 'quoridor': return createQuoridorState() as unknown as Record<string, unknown>;
       case 'pendu': return { word: null, guessedLetters: [] };
       case 'dames': {
         const board: (string | null)[] = Array(100).fill(null);

@@ -23,6 +23,7 @@ import { BackgammonGame } from '@/components/games/BackgammonGame';
 import { SoccerStarsGame } from '@/components/games/SoccerStarsGame';
 import { GorillasGame } from '@/components/games/GorillasGame';
 import { BlackjackGame } from '@/components/games/BlackjackGame';
+import { QuoridorGame } from '@/components/games/QuoridorGame';
 
 import { RematchVote } from '@/components/games/RematchVote';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
@@ -50,6 +51,7 @@ import {
 } from '@/lib/soccerStarsUtils';
 import { GorillaState, throwBanana } from '@/lib/gorillasUtils';
 import { BlackjackState, playBlackjackAction } from '@/lib/blackjackUtils';
+import { QuoridorState, QuoridorPosition, QuoridorWall, playQuoridorMove, playQuoridorWall } from '@/lib/quoridorUtils';
 
 const GAME_TITLES: Record<string, string> = {
   morpion: 'Morpion',
@@ -69,6 +71,7 @@ const GAME_TITLES: Record<string, string> = {
   football: 'Foot Stars',
   gorillas: 'Gorillas',
   blackjack: 'Blackjack',
+  quoridor: 'Quoridor',
 };
 
 const GamePage = () => {
@@ -539,6 +542,30 @@ const GamePage = () => {
     }
   };
 
+  // ==================== QUORIDOR HANDLERS ====================
+
+  const handleQuoridorMove = async (to: QuoridorPosition) => {
+    const state = gameState as unknown as QuoridorState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playQuoridorMove(state, me, to);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+
+    if (result.finished) {
+      const winner = result.winner === 'player1' ? game.player1_id : game.player2_id;
+      await updateGameState(result.state as unknown as Record<string, unknown>, { status: 'finished' as GameStatus, winner });
+    } else {
+      await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+    }
+  };
+
+  const handleQuoridorWall = async (wall: QuoridorWall) => {
+    const state = gameState as unknown as QuoridorState;
+    const me = amPlayer1 ? 'player1' : 'player2';
+    const result = playQuoridorWall(state, me, wall);
+    const nextTurn = result.nextPlayer === 'player1' ? game.player1_id : game.player2_id;
+    await updateGameState(result.state as unknown as Record<string, unknown>, { current_turn: nextTurn });
+  };
+
   // ==================== BLACKJACK HANDLERS ====================
 
   const handleBlackjackAction = async (action: 'hit' | 'stand') => {
@@ -780,6 +807,8 @@ const GamePage = () => {
         return <BeloteGame game={game} playerId={playerId} onPlay={handleBelotePlay} />;
       case 'blackjack':
         return <BlackjackGame game={game} playerId={playerId} onAction={handleBlackjackAction} />;
+      case 'quoridor':
+        return <QuoridorGame game={game} playerId={playerId} onMove={handleQuoridorMove} onWall={handleQuoridorWall} />;
       case 'backgammon':
         return <BackgammonGame game={game} playerId={playerId} onRoll={handleBackgammonRoll} onMove={handleBackgammonMove} />;
       case 'football':

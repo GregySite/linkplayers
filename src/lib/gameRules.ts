@@ -160,4 +160,13 @@ export const GAME_RULES: Record<GameType, GameRules> = {
     ],
     winCondition: 'Bats le croupier (main plus proche de 21 sans dépasser, ou croupier qui saute) pour gagner la manche. Premier à 5 manches gagnées.',
   },
+  quoridor: {
+    objective: 'Traverse le plateau le premier pour atteindre la ligne du fond adverse.',
+    rules: [
+      'Chacun ton tour : déplace ton pion d\'une case (ou saute par-dessus l\'adversaire s\'il te bloque), ou pose un mur.',
+      'Un mur bloque 2 cases de large et ralentit l\'adversaire — mais tu ne peux jamais couper complètement son chemin.',
+      'Chaque joueur dispose de 10 murs. Une fois posés, ils restent en place toute la partie.',
+    ],
+    winCondition: 'Premier à atteindre la ligne du fond adverse gagne.',
+  },
 };
