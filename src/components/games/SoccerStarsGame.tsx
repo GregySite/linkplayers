@@ -37,12 +37,19 @@ export const SoccerStarsGame = ({ game, playerId, onFlick, pendingFrames, onAnim
   const [selectedToken, setSelectedToken] = useState<string | null>(null);
   const [animFrame, setAnimFrame] = useState<FlickFrame | null>(null);
 
-  // Adapte la taille du canvas au conteneur, en gardant le ratio du terrain
+  // Adapte la taille du canvas au conteneur, en gardant le ratio du terrain.
+  // Important : on plafonne la LARGEUR (pas la hauteur indépendamment), sinon
+  // sur un grand écran (conteneur qui atteint son max-w) la hauteur calculée
+  // dépasse le plafond et le bas du terrain se retrouve hors du canvas —
+  // c'est exactement ce qui coupait le terrain sur PC.
+  const MAX_CANVAS_HEIGHT = 560;
   useEffect(() => {
     const update = () => {
-      const w = containerRef.current?.clientWidth || 300;
+      const containerW = containerRef.current?.clientWidth || 300;
+      const maxWidthForHeight = MAX_CANVAS_HEIGHT / (FIELD_HEIGHT / FIELD_WIDTH);
+      const w = Math.min(containerW, maxWidthForHeight);
       const h = w * (FIELD_HEIGHT / FIELD_WIDTH);
-      setCanvasSize({ w, h: Math.min(h, 560) });
+      setCanvasSize({ w, h });
     };
     update();
     window.addEventListener('resize', update);
