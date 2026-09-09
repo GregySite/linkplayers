@@ -216,6 +216,16 @@ export const useGame = (gameCode?: string) => {
     return data as Game;
   }, [game]);
 
+  // Filet de sécurité identique à la création : si la fonction serveur ne
+  // connaît pas encore ce type de jeu, getInitialState() y renvoie un état
+  // vide (juste scores/rematchCount/votes), et la partie resterait bloquée
+  // sur "Chargement...". On complète alors l'état directement depuis le
+  // client, sans toucher aux champs déjà corrects (scores, etc.).
+  const REMATCH_STATE_MARKER: Partial<Record<GameType, string>> = {
+    blackjack: 'hands',
+    quoridor: 'pawns',
+  };
+
   const startRematch = useCallback(async (): Promise<Game | null> => {
     if (!game) return null;
 
@@ -224,9 +234,23 @@ export const useGame = (gameCode?: string) => {
     });
 
     if (actionError) { setError('Erreur lors de la création de la revanche'); return null; }
-    setGame(data as Game);
-    return data as Game;
-  }, [game]);
+
+    let result = data as Game;
+    const marker = REMATCH_STATE_MARKER[result.game_type];
+    if (marker && result.game_state && !(marker in result.game_state)) {
+      const fixedState = { ...createInitialGameState(result.game_type), ...(result.game_state as Record<string, unknown>) };
+      const { data: fixed, error: fixError } = await supabase
+        .from('games')
+        .update({ game_state: fixedState })
+        .eq('id', result.id)
+        .select()
+        .single();
+      if (!fixError && fixed) result = fixed as Game;
+    }
+
+    setGame(result);
+    return result;
+  }, [game, playerId]);
 
   // Subscribe to realtime updates with reconnection + polling fallback
   useEffect(() => {
