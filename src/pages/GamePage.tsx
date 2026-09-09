@@ -85,6 +85,21 @@ const GamePage = () => {
   const local = useLocalGame((localGameType || 'morpion') as GameType);
   const { game, loading, error, playerId, updateGameState, voteRematch, startRematch } = isLocal ? local : online;
 
+  // En ligne : ouvrir le lien de partage doit inscrire ce joueur comme
+  // participant. Sans ça, quelqu'un qui arrive directement sur /game/:code
+  // (au lieu de passer par la modale "Rejoindre") n'est jamais réellement
+  // ajouté comme joueur 2 — les deux écrans restent bloqués sur l'attente.
+  // handleJoin gère déjà sans erreur le cas où on est déjà participant (y
+  // compris le créateur, qui atterrit aussi sur cette URL après la création).
+  const joinAttemptedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLocal || !code || !online.game) return;
+    if (online.game.player1_id === playerId || online.game.player2_id === playerId) return;
+    if (joinAttemptedRef.current === code) return;
+    joinAttemptedRef.current = code;
+    online.joinGame(code);
+  }, [isLocal, code, online.game, online.joinGame, playerId]);
+
   const rematchTriggered = useRef(false);
   const footballPendingRef = useRef<{ finalState: SoccerStarsState; goalScored: 'player1' | 'player2' | null; me: 'player1' | 'player2' } | null>(null);
   const [footballFrames, setFootballFrames] = useState<FlickFrame[] | null>(null);
