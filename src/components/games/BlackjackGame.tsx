@@ -46,7 +46,11 @@ export const BlackjackGame = ({ game, playerId, onAction }: BlackjackGameProps) 
   const opponentHand = state.hands[opponent] || [];
   const myTurn = state.turn === me && !state.standing[me] && !state.busted[me] && !isFinished;
   const bothPlayersDone = (state.standing.player1 || state.busted.player1) && (state.standing.player2 || state.busted.player2);
-  const revealDealer = bothPlayersDone || isFinished || !!state.roundSummary;
+  // Ne dépend QUE de l'état réel de la manche en cours (jamais d'un signal
+  // lié à l'affichage du résumé, qui a son propre cycle de vie et peut
+  // rester "ouvert" alors qu'une manche suivante, avec une main fraîche du
+  // croupier non jouée, a déjà commencé).
+  const revealDealer = bothPlayersDone || isFinished;
 
   const statusText = () => {
     if (isFinished) return null;
