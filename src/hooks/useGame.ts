@@ -96,7 +96,7 @@ export const useGame = (gameCode?: string) => {
 
     const { data, error: actionError } = await invokeGameAction('create', playerId, { game_type: gameType });
 
-    if (actionError) { setError('Erreur lors de la création de la partie'); setLoading(false); return null; }
+    if (actionError) { setError(`Erreur lors de la création de la partie : ${actionError}`); setLoading(false); return null; }
     setGame(data as Game);
     setLoading(false);
     return data as Game;

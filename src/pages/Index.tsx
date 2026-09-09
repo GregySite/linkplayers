@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Grid3X3, Ship, Users, Zap, Circle, Hand, Disc, PenLine, Crown, Layers, Bot, Spade, Diamond, Club, CircleDot, Heart, Dice5, Goal, Smartphone, Coins, Fence } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { GameRulesDrawer } from '@/components/GameRulesDrawer';
 import { useGame, GameType } from '@/hooks/useGame';
+import { toast } from '@/components/ui/sonner';
 
 const GAMES: { type: GameType; title: string; description: string; icon: React.ReactNode }[] = [
   { type: 'morpion', title: 'Morpion', description: 'Le classique des classiques. Aligne 3 symboles pour gagner !', icon: <Grid3X3 className="w-6 h-6" /> },
@@ -35,6 +36,13 @@ const Index = () => {
   const { createGame, joinGame, loading, error } = useGame();
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<typeof GAMES[number] | null>(null);
+
+  // La création (bouton "Duo") pouvait échouer en silence : le tiroir se
+  // fermait et rien ne se passait, sans aucun message. On affiche désormais
+  // l'erreur dès qu'elle apparaît, quelle que soit son origine.
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
 
   const handleCreateGame = async (type: GameType) => {
     const game = await createGame(type);
