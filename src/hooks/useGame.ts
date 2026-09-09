@@ -70,41 +70,21 @@ const invokeGameAction = async (action: string, playerId: string, params: Record
   return { data: data?.data || null, error: null };
 };
 
-// The `games` table allows public inserts (RLS: "Anyone can create games"),
-// so this direct fallback works without any elevated access.
-const GAME_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const generateGameCodeClient = (): string => {
-  let code = '';
-  for (let i = 0; i < 4; i++) code += GAME_CODE_CHARS.charAt(Math.floor(Math.random() * GAME_CODE_CHARS.length));
-  return code;
-};
-
 // Filet de sécurité : si la fonction serveur déployée est en retard sur le
 // code (ex. un nouveau type de jeu qu'elle ne reconnaît pas encore) et
-// refuse la création avec "Invalid game type", on crée la partie
-// directement depuis le client plutôt que de laisser l'utilisateur bloqué.
+// refuse la création avec "Invalid game type", on passe par la fonction SQL
+// create_game_bypass (SECURITY DEFINER, portée volontairement étroite —
+// voir la migration correspondante) plutôt qu'un insert direct, bloqué par
+// la politique RLS "No direct insert".
 const createGameDirect = async (gameType: GameType, playerId: string): Promise<{ data: Game | null; error: string | null }> => {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = generateGameCodeClient();
-    const { data, error } = await supabase
-      .from('games')
-      .insert([{
-        code,
-        game_type: gameType,
-        player1_id: playerId,
-        current_turn: playerId,
-        game_state: createInitialGameState(gameType),
-      }])
-      .select()
-      .single();
+  const { data, error } = await supabase.rpc('create_game_bypass', {
+    p_game_type: gameType,
+    p_player_id: playerId,
+    p_game_state: createInitialGameState(gameType),
+  });
 
-    if (!error) return { data: data as Game, error: null };
-    // 23505 = unique_violation : collision de code, on retente avec un nouveau code
-    if ((error as { code?: string }).code !== '23505') {
-      return { data: null, error: error.message };
-    }
-  }
-  return { data: null, error: 'Impossible de générer un code de partie unique' };
+  if (error) return { data: null, error: error.message };
+  return { data: data as Game, error: null };
 };
 
 export const useGame = (gameCode?: string) => {
@@ -239,12 +219,11 @@ export const useGame = (gameCode?: string) => {
     const marker = REMATCH_STATE_MARKER[result.game_type];
     if (marker && result.game_state && !(marker in result.game_state)) {
       const fixedState = { ...createInitialGameState(result.game_type), ...(result.game_state as Record<string, unknown>) };
-      const { data: fixed, error: fixError } = await supabase
-        .from('games')
-        .update({ game_state: fixedState })
-        .eq('id', result.id)
-        .select()
-        .single();
+      const { data: fixed, error: fixError } = await supabase.rpc('fix_game_state_bypass', {
+        p_game_id: result.id,
+        p_player_id: playerId,
+        p_game_state: fixedState,
+      });
       if (!fixError && fixed) result = fixed as Game;
     }
 
