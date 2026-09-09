@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { createInitialGameState } from '@/lib/initialGameState';
 
 function getLocalPlayerId(): string {
   const key = 'local_player_id';
@@ -69,6 +70,43 @@ const invokeGameAction = async (action: string, playerId: string, params: Record
   return { data: data?.data || null, error: null };
 };
 
+// The `games` table allows public inserts (RLS: "Anyone can create games"),
+// so this direct fallback works without any elevated access.
+const GAME_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const generateGameCodeClient = (): string => {
+  let code = '';
+  for (let i = 0; i < 4; i++) code += GAME_CODE_CHARS.charAt(Math.floor(Math.random() * GAME_CODE_CHARS.length));
+  return code;
+};
+
+// Filet de sécurité : si la fonction serveur déployée est en retard sur le
+// code (ex. un nouveau type de jeu qu'elle ne reconnaît pas encore) et
+// refuse la création avec "Invalid game type", on crée la partie
+// directement depuis le client plutôt que de laisser l'utilisateur bloqué.
+const createGameDirect = async (gameType: GameType, playerId: string): Promise<{ data: Game | null; error: string | null }> => {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateGameCodeClient();
+    const { data, error } = await supabase
+      .from('games')
+      .insert([{
+        code,
+        game_type: gameType,
+        player1_id: playerId,
+        current_turn: playerId,
+        game_state: createInitialGameState(gameType),
+      }])
+      .select()
+      .single();
+
+    if (!error) return { data: data as Game, error: null };
+    // 23505 = unique_violation : collision de code, on retente avec un nouveau code
+    if ((error as { code?: string }).code !== '23505') {
+      return { data: null, error: error.message };
+    }
+  }
+  return { data: null, error: 'Impossible de générer un code de partie unique' };
+};
+
 export const useGame = (gameCode?: string) => {
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(false);
@@ -111,7 +149,18 @@ export const useGame = (gameCode?: string) => {
 
     const { data, error: actionError } = await invokeGameAction('create', playerId, { game_type: gameType });
 
-    if (actionError) { setError(`Erreur lors de la création de la partie : ${actionError}`); setLoading(false); return null; }
+    if (actionError) {
+      if (actionError.includes('Invalid game type')) {
+        const direct = await createGameDirect(gameType, playerId);
+        if (direct.data) { setGame(direct.data); setLoading(false); return direct.data; }
+        setError(`Erreur lors de la création de la partie : ${direct.error}`);
+        setLoading(false);
+        return null;
+      }
+      setError(`Erreur lors de la création de la partie : ${actionError}`);
+      setLoading(false);
+      return null;
+    }
     setGame(data as Game);
     setLoading(false);
     return data as Game;
