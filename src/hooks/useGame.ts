@@ -43,7 +43,22 @@ const invokeGameAction = async (action: string, playerId: string, params: Record
 
   if (error) {
     console.error(`game-actions/${action} invoke error:`, error);
-    return { data: null, error: error.message || 'Request failed' };
+    // Quand la fonction répond avec un statut non-2xx, le client Supabase
+    // masque le vrai message derrière "Edge Function returned a non-2xx
+    // status code" — le message réel renvoyé par la fonction (ex. "Invalid
+    // game type") est dans le corps de la réponse, accessible via
+    // error.context (l'objet Response brut de l'appel fetch sous-jacent).
+    let detail = error.message || 'Request failed';
+    try {
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) detail = body.error;
+      }
+    } catch {
+      // Corps non-JSON ou déjà consommé : on garde le message générique.
+    }
+    return { data: null, error: detail };
   }
 
   // The edge function returns { data: ... } or { error: ... }
