@@ -1,15 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensurePlayerSession } from '@/lib/anonAuth';
 
-function getLocalPlayerId(): string {
-  const key = 'local_player_id';
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
 
 export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football' | 'gorillas' | 'blackjack' | 'quoridor';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
