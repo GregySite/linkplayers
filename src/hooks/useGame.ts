@@ -26,11 +26,13 @@ export interface Game {
   updated_at: string;
 }
 
-// Helper to invoke the game-actions edge function
-// Auth is handled automatically via the Supabase client's JWT header
-const invokeGameAction = async (action: string, playerId: string, params: Record<string, unknown> = {}) => {
+// Toutes les écritures passent par la fonction serveur. L'identité du joueur
+// n'est plus envoyée dans le corps de la requête : le serveur la lit dans le
+// jeton de session vérifié, ce qui empêche d'agir à la place d'un autre.
+const invokeGameAction = async (action: string, params: Record<string, unknown> = {}) => {
+  await ensurePlayerSession();
   const { data, error } = await supabase.functions.invoke('game-actions', {
-    body: { action, player_id: playerId, ...params },
+    body: { action, ...params },
   });
 
   if (error) {
