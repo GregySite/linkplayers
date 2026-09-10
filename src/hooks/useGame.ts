@@ -280,9 +280,14 @@ export const useGame = (gameCode?: string) => {
   useEffect(() => {
     if (!gameCode || bootstrappedRef.current === gameCode) return;
     bootstrappedRef.current = gameCode;
+    joiningRef.current = true;
     (async () => {
-      const found = await fetchGame(gameCode, true);
-      if (!found) await joinGame(gameCode);
+      try {
+        const found = await fetchGame(gameCode, true);
+        if (!found) await joinGame(gameCode);
+      } finally {
+        joiningRef.current = false;
+      }
     })();
   }, [gameCode, fetchGame, joinGame]);
 
