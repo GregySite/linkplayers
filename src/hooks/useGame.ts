@@ -1,15 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensurePlayerSession } from '@/lib/anonAuth';
 
-function getLocalPlayerId(): string {
-  const key = 'local_player_id';
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
 
 export type GameType = 'morpion' | 'battleship' | 'connect4' | 'rps' | 'othello' | 'pendu' | 'dames' | 'memory' | 'chkobba' | 'yaniv' | 'rami' | 'awale' | 'belote' | 'backgammon' | 'football' | 'gorillas' | 'blackjack' | 'quoridor';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
@@ -34,11 +26,13 @@ export interface Game {
   updated_at: string;
 }
 
-// Helper to invoke the game-actions edge function
-// Auth is handled automatically via the Supabase client's JWT header
-const invokeGameAction = async (action: string, playerId: string, params: Record<string, unknown> = {}) => {
+// Toutes les écritures passent par la fonction serveur. L'identité du joueur
+// n'est plus envoyée dans le corps de la requête : le serveur la lit dans le
+// jeton de session vérifié, ce qui empêche d'agir à la place d'un autre.
+const invokeGameAction = async (action: string, params: Record<string, unknown> = {}) => {
+  await ensurePlayerSession();
   const { data, error } = await supabase.functions.invoke('game-actions', {
-    body: { action, player_id: playerId, ...params },
+    body: { action, ...params },
   });
 
   if (error) {
@@ -74,16 +68,31 @@ export const useGame = (gameCode?: string) => {
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const playerId = getLocalPlayerId();
+  // Identité vérifiée : identifiant de la session anonyme, pas un UUID
+  // fabriqué par le navigateur.
+  const [playerId, setPlayerId] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    ensurePlayerSession().then((id) => {
+      if (!cancelled && id) setPlayerId(id);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // fetchGame reads directly (RLS now restricts to participants only)
   // Les rafraîchissements (realtime / polling) sont silencieux : pas d'écran de chargement,
   // ce qui évite les "sauts" de la page pendant la partie.
   const hasLoadedRef = useRef(false);
-  const fetchGame = useCallback(async (code: string) => {
+  // Tant qu'on est en train de rejoindre la partie, une lecture vide est
+  // normale (on n'en fait pas encore partie) : pas de message d'erreur.
+  const joiningRef = useRef(false);
+  const fetchGame = useCallback(async (code: string, quietNotFound = false) => {
     const silent = hasLoadedRef.current;
     if (!silent) setLoading(true);
     setError(null);
+    // La lecture est restreinte aux deux joueurs de la partie (RLS).
+    await ensurePlayerSession();
     const { data, error: fetchError } = await supabase
       .from('games')
       .select('*')
@@ -95,7 +104,7 @@ export const useGame = (gameCode?: string) => {
       return null;
     }
     if (!data) {
-      if (!silent) { setError('Partie non trouvée'); setLoading(false); }
+      if (!silent && !quietNotFound && !joiningRef.current) { setError('Partie non trouvée'); setLoading(false); }
       return null;
     }
     hasLoadedRef.current = true;
@@ -106,11 +115,10 @@ export const useGame = (gameCode?: string) => {
 
   // All write operations go through the edge function (player identity from JWT)
   const createGame = useCallback(async (gameType: GameType): Promise<Game | null> => {
-    if (!playerId) return null;
     setLoading(true);
     setError(null);
 
-    const { data, error: actionError } = await invokeGameAction('create', playerId, { game_type: gameType });
+    const { data, error: actionError } = await invokeGameAction('create', { game_type: gameType });
 
     if (actionError) {
       setError(`Erreur lors de la création de la partie : ${actionError}`);
@@ -123,11 +131,10 @@ export const useGame = (gameCode?: string) => {
   }, [playerId]);
 
   const joinGame = useCallback(async (code: string): Promise<Game | null> => {
-    if (!playerId) return null;
     setLoading(true);
     setError(null);
 
-    const { data, error: actionError } = await invokeGameAction('join', playerId, { code: code.toUpperCase() });
+    const { data, error: actionError } = await invokeGameAction('join', { code: code.toUpperCase() });
 
     if (actionError) {
       setError(actionError === 'Game not found' ? 'Code invalide - partie non trouvée' :
@@ -148,7 +155,7 @@ export const useGame = (gameCode?: string) => {
   ) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('update_state', playerId, {
+    const { data, error: actionError } = await invokeGameAction('update_state', {
       game_id: game.id,
       game_state: newState,
       additional_updates: additionalUpdates || {},
@@ -162,7 +169,7 @@ export const useGame = (gameCode?: string) => {
   const voteRematch = useCallback(async (wantRematch: boolean) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('vote_rematch', playerId, {
+    const { data, error: actionError } = await invokeGameAction('vote_rematch', {
       game_id: game.id,
       want_rematch: wantRematch,
     });
@@ -175,7 +182,7 @@ export const useGame = (gameCode?: string) => {
   const startRematch = useCallback(async (): Promise<Game | null> => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('start_rematch', playerId, {
+    const { data, error: actionError } = await invokeGameAction('start_rematch', {
       game_id: game.id,
     });
 
@@ -265,10 +272,24 @@ export const useGame = (gameCode?: string) => {
     };
   }, [gameCode, fetchGame]);
 
-  // Fetch game on mount
+  // Au montage : une partie n'est lisible que par ses deux joueurs. Si la
+  // lecture ne renvoie rien, c'est qu'on n'y participe pas encore (lien de
+  // partage ouvert directement) : on demande alors au serveur de nous
+  // inscrire comme joueur 2.
+  const bootstrappedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (gameCode) fetchGame(gameCode);
-  }, [gameCode, fetchGame]);
+    if (!gameCode || bootstrappedRef.current === gameCode) return;
+    bootstrappedRef.current = gameCode;
+    joiningRef.current = true;
+    (async () => {
+      try {
+        const found = await fetchGame(gameCode, true);
+        if (!found) await joinGame(gameCode);
+      } finally {
+        joiningRef.current = false;
+      }
+    })();
+  }, [gameCode, fetchGame, joinGame]);
 
   return { game, loading, error, playerId, createGame, joinGame, updateGameState, fetchGame, voteRematch, startRematch };
 };
