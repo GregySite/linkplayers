@@ -112,7 +112,6 @@ export const useGame = (gameCode?: string) => {
 
   // All write operations go through the edge function (player identity from JWT)
   const createGame = useCallback(async (gameType: GameType): Promise<Game | null> => {
-    if (!playerId) return null;
     setLoading(true);
     setError(null);
 
@@ -129,7 +128,6 @@ export const useGame = (gameCode?: string) => {
   }, [playerId]);
 
   const joinGame = useCallback(async (code: string): Promise<Game | null> => {
-    if (!playerId) return null;
     setLoading(true);
     setError(null);
 
