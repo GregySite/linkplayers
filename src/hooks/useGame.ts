@@ -66,7 +66,17 @@ export const useGame = (gameCode?: string) => {
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const playerId = getLocalPlayerId();
+  // Identité vérifiée : identifiant de la session anonyme, pas un UUID
+  // fabriqué par le navigateur.
+  const [playerId, setPlayerId] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    ensurePlayerSession().then((id) => {
+      if (!cancelled && id) setPlayerId(id);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // fetchGame reads directly (RLS now restricts to participants only)
   // Les rafraîchissements (realtime / polling) sont silencieux : pas d'écran de chargement,
