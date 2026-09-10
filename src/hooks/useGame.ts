@@ -84,6 +84,9 @@ export const useGame = (gameCode?: string) => {
   // Les rafraîchissements (realtime / polling) sont silencieux : pas d'écran de chargement,
   // ce qui évite les "sauts" de la page pendant la partie.
   const hasLoadedRef = useRef(false);
+  // Tant qu'on est en train de rejoindre la partie, une lecture vide est
+  // normale (on n'en fait pas encore partie) : pas de message d'erreur.
+  const joiningRef = useRef(false);
   const fetchGame = useCallback(async (code: string, quietNotFound = false) => {
     const silent = hasLoadedRef.current;
     if (!silent) setLoading(true);
@@ -101,7 +104,7 @@ export const useGame = (gameCode?: string) => {
       return null;
     }
     if (!data) {
-      if (!silent && !quietNotFound) { setError('Partie non trouvée'); setLoading(false); }
+      if (!silent && !quietNotFound && !joiningRef.current) { setError('Partie non trouvée'); setLoading(false); }
       return null;
     }
     hasLoadedRef.current = true;
