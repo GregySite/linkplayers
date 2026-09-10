@@ -116,7 +116,7 @@ export const useGame = (gameCode?: string) => {
     setLoading(true);
     setError(null);
 
-    const { data, error: actionError } = await invokeGameAction('create', playerId, { game_type: gameType });
+    const { data, error: actionError } = await invokeGameAction('create', { game_type: gameType });
 
     if (actionError) {
       setError(`Erreur lors de la création de la partie : ${actionError}`);
@@ -133,7 +133,7 @@ export const useGame = (gameCode?: string) => {
     setLoading(true);
     setError(null);
 
-    const { data, error: actionError } = await invokeGameAction('join', playerId, { code: code.toUpperCase() });
+    const { data, error: actionError } = await invokeGameAction('join', { code: code.toUpperCase() });
 
     if (actionError) {
       setError(actionError === 'Game not found' ? 'Code invalide - partie non trouvée' :
@@ -154,7 +154,7 @@ export const useGame = (gameCode?: string) => {
   ) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('update_state', playerId, {
+    const { data, error: actionError } = await invokeGameAction('update_state', {
       game_id: game.id,
       game_state: newState,
       additional_updates: additionalUpdates || {},
@@ -168,7 +168,7 @@ export const useGame = (gameCode?: string) => {
   const voteRematch = useCallback(async (wantRematch: boolean) => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('vote_rematch', playerId, {
+    const { data, error: actionError } = await invokeGameAction('vote_rematch', {
       game_id: game.id,
       want_rematch: wantRematch,
     });
@@ -181,7 +181,7 @@ export const useGame = (gameCode?: string) => {
   const startRematch = useCallback(async (): Promise<Game | null> => {
     if (!game) return null;
 
-    const { data, error: actionError } = await invokeGameAction('start_rematch', playerId, {
+    const { data, error: actionError } = await invokeGameAction('start_rematch', {
       game_id: game.id,
     });
 
