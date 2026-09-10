@@ -974,15 +974,32 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const body = await req.json()
-    const { action, player_id: playerId, ...params } = body
+    // Identité vérifiée : elle vient exclusivement du jeton de session
+    // (Authorization: Bearer <jwt>), jamais du corps de la requête. Un
+    // player_id envoyé par le client est ignoré.
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim()
 
-    if (!playerId || typeof playerId !== 'string') {
-      return new Response(JSON.stringify({ error: 'player_id is required' }), {
-        status: 400,
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token)
+    const playerId = userData?.user?.id
+
+    if (userError || !playerId) {
+      console.warn('Rejected unauthenticated request:', userError?.message)
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const body = await req.json()
+    const { action, player_id: _ignoredPlayerId, ...params } = body
 
     console.log(`Request from player ${playerId}, action: ${action}`)
 
