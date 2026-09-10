@@ -61,7 +61,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_game_bypass: {
+        Args: {
+          p_game_state: Json
+          p_game_type: Database["public"]["Enums"]["game_type"]
+          p_player_id: string
+        }
+        Returns: {
+          code: string
+          created_at: string
+          current_turn: string | null
+          game_state: Json
+          game_type: Database["public"]["Enums"]["game_type"]
+          id: string
+          player1_id: string | null
+          player2_id: string | null
+          status: Database["public"]["Enums"]["game_status"]
+          updated_at: string
+          winner: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "games"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fix_game_state_bypass: {
+        Args: { p_game_id: string; p_game_state: Json; p_player_id: string }
+        Returns: {
+          code: string
+          created_at: string
+          current_turn: string | null
+          game_state: Json
+          game_type: Database["public"]["Enums"]["game_type"]
+          id: string
+          player1_id: string | null
+          player2_id: string | null
+          status: Database["public"]["Enums"]["game_status"]
+          updated_at: string
+          winner: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "games"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       game_status: "waiting" | "playing" | "finished"

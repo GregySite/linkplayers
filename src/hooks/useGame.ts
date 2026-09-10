@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { createInitialGameState } from '@/lib/initialGameState';
 
 function getLocalPlayerId(): string {
@@ -80,7 +81,7 @@ const createGameDirect = async (gameType: GameType, playerId: string): Promise<{
   const { data, error } = await supabase.rpc('create_game_bypass', {
     p_game_type: gameType,
     p_player_id: playerId,
-    p_game_state: createInitialGameState(gameType),
+    p_game_state: createInitialGameState(gameType) as Json,
   });
 
   if (error) return { data: null, error: error.message };
@@ -222,7 +223,7 @@ export const useGame = (gameCode?: string) => {
       const { data: fixed, error: fixError } = await supabase.rpc('fix_game_state_bypass', {
         p_game_id: result.id,
         p_player_id: playerId,
-        p_game_state: fixedState,
+        p_game_state: fixedState as Json,
       });
       if (!fixError && fixed) result = fixed as Game;
     }
