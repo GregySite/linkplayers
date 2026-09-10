@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
-import { createInitialGameState } from '@/lib/initialGameState';
 
 function getLocalPlayerId(): string {
   const key = 'local_player_id';
@@ -71,22 +69,6 @@ const invokeGameAction = async (action: string, playerId: string, params: Record
   return { data: data?.data || null, error: null };
 };
 
-// Filet de sécurité : si la fonction serveur déployée est en retard sur le
-// code (ex. un nouveau type de jeu qu'elle ne reconnaît pas encore) et
-// refuse la création avec "Invalid game type", on passe par la fonction SQL
-// create_game_bypass (SECURITY DEFINER, portée volontairement étroite —
-// voir la migration correspondante) plutôt qu'un insert direct, bloqué par
-// la politique RLS "No direct insert".
-const createGameDirect = async (gameType: GameType, playerId: string): Promise<{ data: Game | null; error: string | null }> => {
-  const { data, error } = await supabase.rpc('create_game_bypass', {
-    p_game_type: gameType,
-    p_player_id: playerId,
-    p_game_state: createInitialGameState(gameType) as Json,
-  });
-
-  if (error) return { data: null, error: error.message };
-  return { data: data as Game, error: null };
-};
 
 export const useGame = (gameCode?: string) => {
   const [game, setGame] = useState<Game | null>(null);
@@ -131,13 +113,6 @@ export const useGame = (gameCode?: string) => {
     const { data, error: actionError } = await invokeGameAction('create', playerId, { game_type: gameType });
 
     if (actionError) {
-      if (actionError.includes('Invalid game type')) {
-        const direct = await createGameDirect(gameType, playerId);
-        if (direct.data) { setGame(direct.data); setLoading(false); return direct.data; }
-        setError(`Erreur lors de la création de la partie : ${direct.error}`);
-        setLoading(false);
-        return null;
-      }
       setError(`Erreur lors de la création de la partie : ${actionError}`);
       setLoading(false);
       return null;
@@ -197,16 +172,6 @@ export const useGame = (gameCode?: string) => {
     return data as Game;
   }, [game]);
 
-  // Filet de sécurité identique à la création : si la fonction serveur ne
-  // connaît pas encore ce type de jeu, getInitialState() y renvoie un état
-  // vide (juste scores/rematchCount/votes), et la partie resterait bloquée
-  // sur "Chargement...". On complète alors l'état directement depuis le
-  // client, sans toucher aux champs déjà corrects (scores, etc.).
-  const REMATCH_STATE_MARKER: Partial<Record<GameType, string>> = {
-    blackjack: 'hands',
-    quoridor: 'pawns',
-  };
-
   const startRematch = useCallback(async (): Promise<Game | null> => {
     if (!game) return null;
 
@@ -216,18 +181,7 @@ export const useGame = (gameCode?: string) => {
 
     if (actionError) { setError('Erreur lors de la création de la revanche'); return null; }
 
-    let result = data as Game;
-    const marker = REMATCH_STATE_MARKER[result.game_type];
-    if (marker && result.game_state && !(marker in result.game_state)) {
-      const fixedState = { ...createInitialGameState(result.game_type), ...(result.game_state as Record<string, unknown>) };
-      const { data: fixed, error: fixError } = await supabase.rpc('fix_game_state_bypass', {
-        p_game_id: result.id,
-        p_player_id: playerId,
-        p_game_state: fixedState as Json,
-      });
-      if (!fixError && fixed) result = fixed as Game;
-    }
-
+    const result = data as Game;
     setGame(result);
     return result;
   }, [game, playerId]);
