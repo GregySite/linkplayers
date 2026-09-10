@@ -82,10 +82,12 @@ export const useGame = (gameCode?: string) => {
   // Les rafraîchissements (realtime / polling) sont silencieux : pas d'écran de chargement,
   // ce qui évite les "sauts" de la page pendant la partie.
   const hasLoadedRef = useRef(false);
-  const fetchGame = useCallback(async (code: string) => {
+  const fetchGame = useCallback(async (code: string, quietNotFound = false) => {
     const silent = hasLoadedRef.current;
     if (!silent) setLoading(true);
     setError(null);
+    // La lecture est restreinte aux deux joueurs de la partie (RLS).
+    await ensurePlayerSession();
     const { data, error: fetchError } = await supabase
       .from('games')
       .select('*')
@@ -97,7 +99,7 @@ export const useGame = (gameCode?: string) => {
       return null;
     }
     if (!data) {
-      if (!silent) { setError('Partie non trouvée'); setLoading(false); }
+      if (!silent && !quietNotFound) { setError('Partie non trouvée'); setLoading(false); }
       return null;
     }
     hasLoadedRef.current = true;
