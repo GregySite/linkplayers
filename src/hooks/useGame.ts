@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
-import { createInitialGameState } from '@/lib/initialGameState';
 
 function getLocalPlayerId(): string {
   const key = 'local_player_id';
