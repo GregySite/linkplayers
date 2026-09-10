@@ -269,10 +269,19 @@ export const useGame = (gameCode?: string) => {
     };
   }, [gameCode, fetchGame]);
 
-  // Fetch game on mount
+  // Au montage : une partie n'est lisible que par ses deux joueurs. Si la
+  // lecture ne renvoie rien, c'est qu'on n'y participe pas encore (lien de
+  // partage ouvert directement) : on demande alors au serveur de nous
+  // inscrire comme joueur 2.
+  const bootstrappedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (gameCode) fetchGame(gameCode);
-  }, [gameCode, fetchGame]);
+    if (!gameCode || bootstrappedRef.current === gameCode) return;
+    bootstrappedRef.current = gameCode;
+    (async () => {
+      const found = await fetchGame(gameCode, true);
+      if (!found) await joinGame(gameCode);
+    })();
+  }, [gameCode, fetchGame, joinGame]);
 
   return { game, loading, error, playerId, createGame, joinGame, updateGameState, fetchGame, voteRematch, startRematch };
 };
