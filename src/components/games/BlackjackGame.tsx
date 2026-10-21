@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Game } from '@/hooks/useGame';
 import { RoundTransitionOverlay, useLatchedRoundSummary } from '@/components/RoundTransitionOverlay';
@@ -38,19 +39,35 @@ export const BlackjackGame = ({ game, playerId, onAction }: BlackjackGameProps) 
   const isFinished = game.status === 'finished' || !!game.winner;
   const { open: showRoundEnd, summary, acknowledge } = useLatchedRoundSummary(state?.roundSummary, state?.round ?? 0);
 
+  // Révélation progressive de la banque avant la fenêtre de résultat :
+  // carte cachée retournée, puis chaque carte tirée une à une.
+  const [revealCount, setRevealCount] = useState(0);
+  const [overlayReady, setOverlayReady] = useState(false);
+  const dealerLen = summary?.dealerHand.length ?? 0;
+  useEffect(() => {
+    if (!showRoundEnd) { setRevealCount(0); setOverlayReady(false); return; }
+    setRevealCount(1);
+    setOverlayReady(false);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 2; i <= dealerLen; i++) {
+      timers.push(setTimeout(() => setRevealCount(i), (i - 1) * 800));
+    }
+    timers.push(setTimeout(() => setOverlayReady(true), (dealerLen - 1) * 800 + 1500));
+    return () => timers.forEach(clearTimeout);
+  }, [showRoundEnd, dealerLen]);
+  const revealing = showRoundEnd && !overlayReady && !!summary;
+
   if (!state?.hands) {
     return <p className="text-muted-foreground">Distribution en cours...</p>;
   }
 
   const myHand = state.hands[me] || [];
   const opponentHand = state.hands[opponent] || [];
-  const myTurn = state.turn === me && !state.standing[me] && !state.busted[me] && !isFinished;
+  const myTurn = state.turn === me && !state.standing[me] && !state.busted[me] && !isFinished && !revealing;
   const bothPlayersDone = (state.standing.player1 || state.busted.player1) && (state.standing.player2 || state.busted.player2);
-  // Ne dépend QUE de l'état réel de la manche en cours (jamais d'un signal
-  // lié à l'affichage du résumé, qui a son propre cycle de vie et peut
-  // rester "ouvert" alors qu'une manche suivante, avec une main fraîche du
-  // croupier non jouée, a déjà commencé).
   const revealDealer = bothPlayersDone || isFinished;
+  const shownDealer = revealing && summary ? summary.dealerHand.slice(0, Math.max(2, revealCount)) : state.dealerHand;
+  const shownDealerValue = handValue(shownDealer);
 
   const statusText = () => {
     if (isFinished) return null;
@@ -86,19 +103,23 @@ export const BlackjackGame = ({ game, playerId, onAction }: BlackjackGameProps) 
               : <span className="text-muted-foreground">Égalité !</span>}
           </p>
         ) : (
-          <p className={myTurn ? 'text-primary font-medium' : 'text-muted-foreground'}>{statusText()}</p>
+          <p className={myTurn ? 'text-primary font-medium' : 'text-muted-foreground'}>{revealing ? 'La banque joue...' : statusText()}</p>
         )}
       </div>
 
       {/* Croupier */}
       <div className="rounded-2xl border border-border bg-card/50 p-3 space-y-2">
         <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground text-center">
-          Croupier {revealDealer ? `— ${handValue(state.dealerHand)}` : ''}
+          Croupier {revealing ? `— ${shownDealerValue}${shownDealerValue > 21 ? ' (sauté)' : ''}` : revealDealer ? `— ${handValue(state.dealerHand)}` : ''}
         </p>
-        <div className="flex justify-center gap-1.5">
-          {state.dealerHand.map((card, i) => (
-            <CardFace key={card.id} card={card} hidden={i === 1 && !revealDealer} />
-          ))}
+        <div className="flex justify-center gap-1.5 flex-wrap">
+          <AnimatePresence>
+            {shownDealer.map((card, i) => (
+              <motion.div key={card.id} initial={{ opacity: 0, y: -20, rotateY: 90 }} animate={{ opacity: 1, y: 0, rotateY: 0 }} transition={{ duration: 0.35 }}>
+                <CardFace card={card} hidden={!revealing && i === 1 && !revealDealer} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -142,7 +163,7 @@ export const BlackjackGame = ({ game, playerId, onAction }: BlackjackGameProps) 
         </div>
       )}
 
-      <RoundTransitionOverlay open={showRoundEnd} title="Fin de manche !" onContinue={acknowledge}>
+      <RoundTransitionOverlay open={showRoundEnd && overlayReady} title="Fin de manche !" onContinue={acknowledge}>
         {summary && (
           <>
             <p className="text-sm text-foreground">Croupier : {summary.dealerValue}{summary.dealerValue > 21 ? ' (sauté)' : ''}</p>
