@@ -16,6 +16,7 @@ export interface BlackjackRoundSummary {
   dealerHand: BlackjackCard[];
   dealerValue: number;
   playerValues: Record<BlackjackPlayer, number>;
+  hands?: Record<BlackjackPlayer, BlackjackCard[]>;
 }
 
 export interface BlackjackState {
@@ -150,7 +151,7 @@ const resolveRound = (state: BlackjackState): BlackjackTurnResult => {
     if (outcome === 'win' || outcome === 'blackjack') scores[p] += 1;
   });
 
-  const roundSummary: BlackjackRoundSummary = { results, dealerHand, dealerValue, playerValues };
+  const roundSummary: BlackjackRoundSummary = { results, dealerHand, dealerValue, playerValues, hands: state.hands };
 
   if (scores.player1 >= BLACKJACK_TARGET || scores.player2 >= BLACKJACK_TARGET) {
     const winner = scores.player1 === scores.player2 ? undefined : (scores.player1 > scores.player2 ? 'player1' : 'player2');
