@@ -61,8 +61,10 @@ export const BlackjackGame = ({ game, playerId, onAction }: BlackjackGameProps) 
     return <p className="text-muted-foreground">Distribution en cours...</p>;
   }
 
-  const myHand = state.hands[me] || [];
-  const opponentHand = state.hands[opponent] || [];
+  // Pendant la révélation, on garde les mains de la manche qui se termine
+  const handsShown = revealing && summary?.hands ? summary.hands : state.hands;
+  const myHand = handsShown[me] || [];
+  const opponentHand = handsShown[opponent] || [];
   const myTurn = state.turn === me && !state.standing[me] && !state.busted[me] && !isFinished && !revealing;
   const bothPlayersDone = (state.standing.player1 || state.busted.player1) && (state.standing.player2 || state.busted.player2);
   const revealDealer = bothPlayersDone || isFinished;
@@ -126,7 +128,7 @@ export const BlackjackGame = ({ game, playerId, onAction }: BlackjackGameProps) 
       {/* Main adverse */}
       <div className="space-y-1">
         <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground text-center">
-          Adversaire {state.busted[opponent] ? '— sauté' : state.standing[opponent] ? `— ${handValue(opponentHand)}` : ''}
+          Adversaire {handValue(opponentHand) > 21 ? '— sauté' : (revealing || state.standing[opponent]) ? `— ${handValue(opponentHand)}` : ''}
         </p>
         <div className="flex justify-center gap-1.5">
           {opponentHand.map((card) => (
@@ -138,7 +140,7 @@ export const BlackjackGame = ({ game, playerId, onAction }: BlackjackGameProps) 
       {/* Ma main */}
       <div className="space-y-2">
         <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground text-center">
-          Ta main — {handValue(myHand)}{state.busted[me] ? ' (sauté)' : ''}
+          Ta main — {handValue(myHand)}{handValue(myHand) > 21 ? ' (sauté)' : ''}
         </p>
         <div className="flex justify-center gap-1.5 flex-wrap">
           <AnimatePresence>
